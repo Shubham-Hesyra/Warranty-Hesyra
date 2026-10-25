@@ -1,0 +1,13 @@
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.log
+.vscode/
+.idea/
+
+# Large local archives and temp files
+*.zip
+Crown-warrenty.zip
+extracted_design/
+node_modules/
