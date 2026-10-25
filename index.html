@@ -1114,8 +1114,8 @@ document.getElementById('warranty-form').addEventListener('submit', async (e) =>
 
   submitBtn.disabled = true;
   submitSpinner.classList.remove('hidden');
-  submitText.textContent = 'Registering with Google Sheet…';
-  locationHint.textContent = 'Capturing background location & registering…';
+  submitText.textContent = 'Activating Digital Warranty…';
+  locationHint.textContent = 'Securing registration & activating warranty…';
 
   const location = await captureBackgroundLocation();
 
@@ -1154,7 +1154,7 @@ loginSubmitBtn.addEventListener('click', async () => {
 
   loginSubmitBtn.disabled = true;
   loginSpinner.classList.remove('hidden');
-  loginBtnText.textContent = 'Verifying with Google Sheet…';
+  loginBtnText.textContent = 'Verifying Identity…';
 
   const res = await verifyLogin(crownId, phone);
 
