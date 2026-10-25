@@ -232,14 +232,13 @@
             <span id="step1-num">1</span>
             <svg id="step1-check" class="hidden" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C1E8FF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
           </span>
-          <span style="flex: 1; width: 1px; margin: 8px 0; background: linear-gradient(180deg, #5483B3, rgba(84,131,179,0.2))"></span>
+          <span id="step-connector" class="hidden" style="flex: 1; width: 1px; margin: 8px 0; background: linear-gradient(180deg, #5483B3, rgba(84,131,179,0.2))"></span>
         </div>
 
         <!-- STEP 1 INPUT -->
         <div style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 26px; min-width: 0">
           <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-top: 4px">
             <span style="font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 15px; color: #021024">Crown ID</span>
-            <button type="button" id="sample-btn" style="background: none; border: none; padding: 0; cursor: pointer; font-size: 13px; font-weight: 500; color: #5483B3">Try a sample</button>
           </div>
           <div style="position: relative">
             <input id="crown-id-input" placeholder="ZIR-4510" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Crown ID" style="width: 100%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: #021024; background: #ffffff; border: 1px solid #D3E2F0; border-radius: 14px; padding: 15px 52px 15px 18px; outline: none; box-shadow: 0 1px 2px rgba(2,16,36,0.04), 0 8px 24px -12px rgba(5,38,89,0.18)">
@@ -262,20 +261,14 @@
           </div>
         </div>
 
-        <!-- STEP 2 INDICATOR -->
-        <div style="display: flex; flex-direction: column; align-items: center">
-          <span id="step2-node" style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: #5483B3; background: transparent; border: 1px solid rgba(84,131,179,0.45); flex: none; transition: background 0.3s, color 0.3s">2</span>
+        <!-- STEP 2 INDICATOR (Progressively Revealed) -->
+        <div id="step2-indicator" class="hidden" style="display: flex; flex-direction: column; align-items: center">
+          <span id="step2-node" style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: #F2FAFF; background: #052659; flex: none">2</span>
         </div>
 
-        <!-- STEP 2 INPUTS -->
-        <div id="step2-section" style="display: flex; flex-direction: column; gap: 16px; min-width: 0; opacity: 0.38; pointer-events: none; transition: opacity 0.4s">
+        <!-- STEP 2 INPUTS (Progressively Revealed) -->
+        <div id="step2-section" class="hidden" style="display: flex; flex-direction: column; gap: 16px; min-width: 0; animation: hw-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both">
           
-          <!-- Strict Warning Banner as Requested -->
-          <div style="display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: rgba(234,179,8,0.12); border: 1px solid rgba(234,179,8,0.38); color: #854d0e; font-size: 12.5px; line-height: 1.5">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ca8a04" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none; margin-top:1px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            <span><strong>Important:</strong> Enter your mobile number carefully. Your <strong>Phone Number and Crown ID</strong> will be strictly required to check in and access your warranty card in the future.</span>
-          </div>
-
           <div style="display: flex; flex-direction: column; gap: 3px; padding-top: 4px">
             <span style="font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 15px; color: #021024">Patient Details</span>
             <span style="font-size: 12.5px; color: #6b84a0">Linked with laboratory records for official claims.</span>
@@ -288,12 +281,25 @@
           </label>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px">
-            <label style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
-              <span style="font-size: 13px; font-weight: 500; color: #052659">Mobile / WhatsApp</span>
-              <input id="input-phone" type="tel" inputmode="tel" placeholder="+91 98765 43210" autocomplete="tel" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; min-width: 0; border: 1px solid #D3E2F0">
+            <label style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
+              <div style="display: flex; justify-content: space-between; align-items: baseline">
+                <span style="font-size: 13px; font-weight: 500; color: #052659">Mobile / WhatsApp</span>
+                <span id="phone-auth-tag" class="hidden" style="font-size: 11px; font-weight: 500; color: #052659; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; padding: 1px 6px; display: inline-flex; align-items: center; gap: 3px">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Login Key
+                </span>
+              </div>
+              <input id="input-phone" type="tel" inputmode="tel" placeholder="+91 98765 43210" autocomplete="tel" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; min-width: 0; border: 1px solid #D3E2F0; transition: border-color 0.2s, box-shadow 0.2s">
+              
+              <!-- Subtle, smart mobile notice appearing contextually -->
+              <div id="phone-smart-helper" class="hidden" style="display: flex; align-items: flex-start; gap: 6px; font-size: 11.5px; line-height: 1.45; color: #3b5f8a; background: #F0F7FD; border: 1px solid #D0E4F5; border-radius: 8px; padding: 7px 10px; animation: hw-fade 0.25s ease both">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#052659" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none; margin-top: 1px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span id="phone-helper-text">Permanent check-in key. Strictly required to access your card later.</span>
+              </div>
+
               <span id="phone-err" class="hidden" style="font-size: 12px; color: #c0392b">Enter a valid 10-digit mobile number.</span>
             </label>
-            <label style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+            <label style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
               <span style="font-size: 13px; font-weight: 500; color: #052659">Email <span style="font-weight: 400; color: #6b84a0">(optional)</span></span>
               <input id="input-email" type="email" placeholder="name@example.com" autocomplete="email" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; min-width: 0; border: 1px solid #D3E2F0">
             </label>
@@ -349,9 +355,8 @@
           <span id="login-btn-text">Verify Identity & View Card</span>
         </button>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px; font-size: 12.5px">
+        <div style="display: flex; justify-content: center; align-items: center; padding-top: 4px; font-size: 12.5px">
           <button type="button" id="switch-to-register-link" style="background: none; border: none; padding: 0; color: #052659; font-weight: 500; cursor: pointer; text-decoration: underline">Register a new crown</button>
-          <button type="button" id="login-sample-btn" style="background: none; border: none; padding: 0; color: #5483B3; font-weight: 500; cursor: pointer">Try CER-8942 demo</button>
         </div>
       </div>
     </div>
@@ -603,7 +608,6 @@ const portalSubhead = document.getElementById('portal-subhead');
 
 // Register Form Elements
 const crownIdInput = document.getElementById('crown-id-input');
-const sampleBtn = document.getElementById('sample-btn');
 const crownValidIcon = document.getElementById('crown-valid-icon');
 const idHint = document.getElementById('id-hint');
 const matchBox = document.getElementById('match-box');
@@ -613,12 +617,17 @@ const formMatchFitted = document.getElementById('form-match-fitted');
 
 const step1Num = document.getElementById('step1-num');
 const step1Check = document.getElementById('step1-check');
+const stepConnector = document.getElementById('step-connector');
+const step2Indicator = document.getElementById('step2-indicator');
 const step2Node = document.getElementById('step2-node');
 const step2Section = document.getElementById('step2-section');
 
 const inputName = document.getElementById('input-name');
 const inputPhone = document.getElementById('input-phone');
 const inputEmail = document.getElementById('input-email');
+const phoneSmartHelper = document.getElementById('phone-smart-helper');
+const phoneAuthTag = document.getElementById('phone-auth-tag');
+const phoneHelperText = document.getElementById('phone-helper-text');
 
 const nameErr = document.getElementById('name-err');
 const phoneErr = document.getElementById('phone-err');
@@ -638,7 +647,6 @@ const loginPhoneErr = document.getElementById('login-phone-err');
 const loginSubmitBtn = document.getElementById('login-submit-btn');
 const loginSpinner = document.getElementById('login-spinner');
 const loginBtnText = document.getElementById('login-btn-text');
-const loginSampleBtn = document.getElementById('login-sample-btn');
 const switchToRegisterLink = document.getElementById('switch-to-register-link');
 
 // Legal Modal Elements
@@ -945,10 +953,8 @@ const viewParam = (params.get('view') || '').toLowerCase();
 
 if (typeParam.includes('cer')) {
   currentCase = localDb['CER-8942'] || DEFAULT_REGISTRY['CER-8942'];
-  sampleBtn.textContent = 'Try Ceramic sample';
 } else {
   currentCase = localDb['ZIR-4510'] || DEFAULT_REGISTRY['ZIR-4510'];
-  sampleBtn.textContent = 'Try Zirconia sample';
 }
 
 renderCardData(currentCase);
@@ -992,11 +998,9 @@ async function resolveCrownRegistration(id, autoFocus = false) {
     step1Num.classList.remove('hidden');
     step1Check.classList.add('hidden');
     matchBox.classList.add('hidden');
-    step2Section.style.opacity = '0.38';
-    step2Section.style.pointerEvents = 'none';
-    step2Node.style.background = 'transparent';
-    step2Node.style.color = '#5483B3';
-    step2Node.style.borderColor = 'rgba(84,131,179,0.45)';
+    stepConnector.classList.add('hidden');
+    step2Indicator.classList.add('hidden');
+    step2Section.classList.add('hidden');
     loginMaskedHint.textContent = '';
 
     if (id.length >= 8) {
@@ -1026,7 +1030,7 @@ async function resolveCrownRegistration(id, autoFocus = false) {
   }
 
   if (res.success && !res.isRegistered) {
-    // UNREGISTERED: Automatically select Register Crown tab!
+    // UNREGISTERED: Automatically select Register Crown tab & progressively reveal Step 2!
     setPortalMode('register');
     crownIdInput.value = id;
     loginCrownIdInput.value = id;
@@ -1042,11 +1046,9 @@ async function resolveCrownRegistration(id, autoFocus = false) {
     formMatchFitted.textContent = 'Dispatched ' + (c.issued || '19 Aug 26') + ' · Teeth ' + (c.tooth || '16, 17');
     matchBox.classList.remove('hidden');
 
-    step2Section.style.opacity = '1';
-    step2Section.style.pointerEvents = 'auto';
-    step2Node.style.background = '#052659';
-    step2Node.style.color = '#F2FAFF';
-    step2Node.style.borderColor = '#052659';
+    stepConnector.classList.remove('hidden');
+    step2Indicator.classList.remove('hidden');
+    step2Section.classList.remove('hidden');
     if (autoFocus) inputName.focus();
     return;
   }
@@ -1055,22 +1057,46 @@ async function resolveCrownRegistration(id, autoFocus = false) {
   idHint.textContent = res.error || 'Crown ID not recognized in database.';
   idHint.style.color = '#c0392b';
   matchBox.classList.add('hidden');
-  step2Section.style.opacity = '0.38';
-  step2Section.style.pointerEvents = 'none';
+  stepConnector.classList.add('hidden');
+  step2Indicator.classList.add('hidden');
+  step2Section.classList.add('hidden');
 }
 
-// Samples
-sampleBtn.addEventListener('click', () => {
-  const sampleId = typeParam.includes('cer') ? 'CER-8942' : 'ZIR-4510';
-  handleCrownIdInput(sampleId);
-  inputName.value = 'Meera Joshi';
-  inputPhone.value = '+91 98220 12345';
-});
+// Subtle, Smart Mobile Phone Helper (activates contextually when name is filled / phone focused)
+function updatePhoneHint() {
+  const nameVal = inputName.value.trim();
+  const phoneVal = cleanPhone(inputPhone.value);
 
-loginSampleBtn.addEventListener('click', () => {
-  handleCrownIdInput('CER-8942');
-  loginPhoneInput.value = '+91 98220 12345';
-});
+  if (nameVal.length >= 2 || document.activeElement === inputPhone) {
+    phoneSmartHelper.classList.remove('hidden');
+    phoneAuthTag.classList.remove('hidden');
+  } else if (!phoneVal) {
+    phoneSmartHelper.classList.add('hidden');
+    phoneAuthTag.classList.add('hidden');
+  }
+
+  if (phoneVal.length === 10) {
+    phoneHelperText.innerHTML = '<strong style="color: #166534">Phone linked:</strong> Ready for secure check-in.';
+    phoneSmartHelper.style.background = '#F0FDF4';
+    phoneSmartHelper.style.borderColor = '#BBF7D0';
+    phoneSmartHelper.style.color = '#166534';
+  } else if (phoneVal.length > 0 && phoneVal.length < 10) {
+    phoneHelperText.textContent = `Enter 10-digit mobile number (${phoneVal.length}/10 digits).`;
+    phoneSmartHelper.style.background = '#FFFBEB';
+    phoneSmartHelper.style.borderColor = '#FDE68A';
+    phoneSmartHelper.style.color = '#92400E';
+  } else {
+    phoneHelperText.textContent = 'Permanent check-in key. Strictly required to access your card later.';
+    phoneSmartHelper.style.background = '#F0F7FD';
+    phoneSmartHelper.style.borderColor = '#D0E4F5';
+    phoneSmartHelper.style.color = '#3b5f8a';
+  }
+}
+
+inputName.addEventListener('input', updatePhoneHint);
+inputName.addEventListener('blur', updatePhoneHint);
+inputPhone.addEventListener('focus', updatePhoneHint);
+inputPhone.addEventListener('input', updatePhoneHint);
 
 // 6. Registration Form Submission (Seamless Big-Tech Clickwrap Legal Assent)
 document.getElementById('warranty-form').addEventListener('submit', async (e) => {
