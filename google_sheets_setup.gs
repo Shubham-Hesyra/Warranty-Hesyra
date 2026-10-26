@@ -1,604 +1,465 @@
 /**
  * ============================================================================
- * HESYRA LABS — COMPLETE MASTER WARRANTY ENGINE (v5.0 PRODUCTION)
+ * HESYRA LABS — MASTER WARRANTY ENGINE (Apps Script backend, v2.0.0)
  * ============================================================================
- * 
- * ARCHITECTURE:
- * - Single Unified Master Sheet: "WarrantyMaster"
- * - Ops Software Integration: Dedicated columns for dispatch status, dispatch date
- *   (Warranty Start), delivery date, and auto-computed Warranty Expiry Date.
- * - Patient Self-Registration: Fills patient name, phone lock, email, registration
- *   timestamp, T&C/third-party consent, and background IP location (City, Region,
- *   Country, IP address).
- * - Anti-Fraud Authentication: Locks registered phone number to the Case ID. Mismatched
- *   phone on check-in is strictly blocked.
- * - Native Google Sheets Search & Filters: Pre-configured filter on row 1, frozen
- *   headers and frozen Case ID column for effortless searching and sorting.
- * 
- * 24-COLUMN MASTER SCHEMA:
- * [1]  Case ID                     [13] Lab Job / Serial Ref
- * [2]  Dispatch Status             [14] Ops Quality Notes
- * [3]  Dispatch Date (Start)       [15] Patient Name
- * [4]  Warranty Period (Years)     [16] Registered Phone (Locked)
- * [5]  Warranty Expiry Date (Final)[17] Registered Email
- * [6]  Delivery Date               [18] Registration Timestamp
- * [7]  Prosthesis Material         [19] Patient Address (City from IP)
- * [8]  Material Tier               [20] Patient Region / State (from IP)
- * [9]  Tooth Number(s)             [21] Patient Country (from IP)
- * [10] Shade                       [22] Patient IP Address
- * [11] Clinic Name                 [23] T&C & Consent Status
- * [12] Doctor / Dentist Name       [24] Last Check-In Timestamp
- * 
- * DEPLOYMENT INSTRUCTIONS:
- * 1. Open your Google Sheet > Extensions > Apps Script.
- * 2. Replace all existing code with this entire file and press Ctrl + S (Save).
- * 3. Run "setupMasterSheet" once from the toolbar to generate the formatted sheet,
- *    or simply deploy and make any request—the script will auto-initialize!
- * 4. Click "Deploy" > "Manage deployments" > Edit (pencil) > New version > "Deploy".
- *    (Ensure: Execute as "Me", Access: "Anyone").
+ *
+ * One sheet ("WarrantyMaster", 24 columns) is the registry. The lab / ops
+ * software owns columns 1-14; patient self-registration fills columns 15-24.
+ *
+ * PUBLIC API (web app, "Anyone" access)
+ *   GET  ?action=ping                         → health check
+ *   GET  ?action=lookup&id=ZIR-4510            → public crown details only.
+ *                                                Never returns patient data.
+ *   POST {action:"register", id, patientName, phone, email, consentAgreed,
+ *         consentVersion, location:{city,region,country,ip}}
+ *   POST {action:"verify_login", id, phone}    → patient card (phone masked)
+ *
+ * PROTECTED API (requires the OPS_TOKEN script property)
+ *   POST {action:"ops_update", token, id, dispatchStatus, dispatchDate, ...}
+ *
+ * Patients send POST bodies as text/plain JSON so browsers skip the CORS
+ * preflight. GET "register" / "verify_login" still work for old clients.
+ *
+ * SECURITY MODEL
+ *   - lookup never exposes name, phone, email, IP or location.
+ *   - A phone number is bound to a case on first registration and cannot be
+ *     changed from the web. To re-assign, clear columns 15-24 in the sheet.
+ *   - Check-in is locked for 15 minutes after 5 wrong phone numbers per case.
+ *   - ops_update fails closed: no OPS_TOKEN property → every call rejected.
+ *   - Every patient-supplied string is written as literal text, so values like
+ *     "=IMPORTXML(...)" can never run as formulas in the sheet.
+ *   - Registration / ops writes run under a script lock (no double-register).
+ *
+ * DEPLOYMENT
+ *   1. Sheet → Extensions → Apps Script → replace Code.gs with this file → Save.
+ *   2. Project Settings → Script properties → add OPS_TOKEN = <long random
+ *      string> (only needed if ops software calls ops_update).
+ *   3. Run setupMasterSheet() once from the editor (creates headers/filters).
+ *      Run seedDemoCases() only on a test sheet — it adds sample cases.
+ *   4. Deploy → Manage deployments → Edit → New version → Deploy
+ *      (Execute as: Me, Who has access: Anyone). The /exec URL stays the same.
  * ============================================================================
  */
 
+var API_VERSION = "2.0.0";
 var SHEET_NAME = "WarrantyMaster";
+var NUM_COLS = 24;
+var CONSENT_LABEL = "AGREED - v1.0 [T&C + Privacy Policy]";
+var MAX_FAILED_LOGINS = 5;
+var LOCKOUT_SECONDS = 15 * 60;
+var DEFAULT_WARRANTY_YEARS = 5;
+
+// 1-based column numbers
+var COL = {
+  ID: 1, STATUS: 2, DISPATCH: 3, YEARS: 4, EXPIRY: 5, DELIVERY: 6,
+  MATERIAL: 7, TIER: 8, TOOTH: 9, SHADE: 10, CLINIC: 11, DOCTOR: 12,
+  JOB_REF: 13, NOTES: 14,
+  PATIENT: 15, PHONE: 16, EMAIL: 17, REGISTERED_AT: 18, CITY: 19, REGION: 20,
+  COUNTRY: 21, IP: 22, CONSENT: 23, LAST_LOGIN: 24
+};
+
+var HEADERS = [
+  "Case ID", "Dispatch Status", "Dispatch Date (Warranty Start)", "Warranty Period (Years)",
+  "Warranty Expiry Date (Final)", "Delivery Date", "Material", "Material Tier",
+  "Tooth Number(s)", "Shade", "Clinic Name", "Doctor Name", "Lab Job Ref / Serial",
+  "Ops Quality Notes",
+  "Patient Name", "Registered Phone", "Registered Email", "Registration Timestamp",
+  "Patient Address (City from IP)", "Patient Region / State", "Patient Country",
+  "Patient IP Address", "T&C & Consent Status", "Last Check-In Date"
+];
+
+var ERR = {
+  INVALID_INPUT: "INVALID_INPUT",
+  NOT_FOUND: "NOT_FOUND",
+  NOT_DISPATCHED: "NOT_DISPATCHED",
+  ALREADY_REGISTERED: "ALREADY_REGISTERED",
+  NOT_REGISTERED: "NOT_REGISTERED",
+  WRONG_PHONE: "WRONG_PHONE",
+  LOCKED: "LOCKED",
+  UNAUTHORIZED: "UNAUTHORIZED",
+  BUSY: "BUSY",
+  UNKNOWN_ACTION: "UNKNOWN_ACTION",
+  SERVER_ERROR: "SERVER_ERROR"
+};
 
 // ----------------------------------------------------------------------------
-// 1. WEB APP GET ROUTER (CORS-Friendly & Zero-Server Direct)
+// 1. ROUTERS
 // ----------------------------------------------------------------------------
 function doGet(e) {
-  try {
-    var params = (e && e.parameter) ? e.parameter : {};
-    var action = (params.action || "ping").toLowerCase();
-    var id = cleanId(params.id || params.caseId || "");
-    var phone = cleanPhone(params.phone || "");
-
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = getOrInitMasterSheet(ss);
-
-    // 1. PING & STATUS
-    if (action === "ping") {
-      return jsonResponse({
-        status: "active",
-        message: "Hesyra Master Warranty API Online",
-        sheet: sheet.getName(),
-        totalCases: Math.max(0, sheet.getLastRow() - 1),
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // 2. FORCE SETUP / REBUILD MASTER REGISTRY
-    if (action === "setup") {
-      setupMasterSheet(ss);
-      return jsonResponse({
-        success: true,
-        message: "WarrantyMaster sheet successfully initialized with 24 columns, filters, and starter cases."
-      });
-    }
-
-    // 3. CASE LOOKUP (Patient Scans QR / Types ID)
-    if (action === "lookup") {
-      if (!id) {
-        return jsonResponse({ success: false, error: "Case ID is required for lookup." });
-      }
-
-      var rowMatch = findRowByCaseId(sheet, id);
-      if (!rowMatch) {
-        return jsonResponse({
-          success: false,
-          error: "Case ID (" + id + ") not found in laboratory records. Please check the label on your box."
-        });
-      }
-
-      var c = formatCrownFromRow(rowMatch.values, rowMatch.rowIndex);
-      var isReg = cleanPhone(c.phone).length > 0;
-
-      if (isReg) {
-        return jsonResponse({
-          success: true,
-          isRegistered: true,
-          caseId: c.crownId,
-          patientName: c.patient,
-          clinic: c.clinic,
-          doctor: c.dentist,
-          material: c.product,
-          materialFull: c.materialFull,
-          maskedPhone: maskPhoneNumber(c.phone),
-          dispatchStatus: c.dispatchStatus,
-          dispatchDate: c.dispatchDate,
-          expiryDate: c.expiryDate,
-          crown: c
-        });
-      } else {
-        return jsonResponse({
-          success: true,
-          isRegistered: false,
-          crown: c
-        });
-      }
-    }
-
-    // 4. VERIFY LOGIN / CHECK-IN (Strict Anti-Fraud Phone Authentication)
-    if (action === "verify_login") {
-      if (!id) {
-        return jsonResponse({ success: false, error: "Case ID is required." });
-      }
-      if (!phone) {
-        return jsonResponse({ success: false, error: "Registered phone number is required." });
-      }
-
-      var rowMatch = findRowByCaseId(sheet, id);
-      if (!rowMatch) {
-        return jsonResponse({ success: false, error: "Case ID not found in laboratory records." });
-      }
-
-      var c = formatCrownFromRow(rowMatch.values, rowMatch.rowIndex);
-      var registeredPhone = cleanPhone(c.phone);
-
-      if (!registeredPhone) {
-        return jsonResponse({
-          success: false,
-          needsRegistration: true,
-          error: "This case has not been registered yet. Please register your crown first."
-        });
-      }
-
-      // Strict phone authentication: compare last 10 digits
-      if (phonesMatch(phone, registeredPhone)) {
-        // Record last check-in timestamp in Column 24
-        var nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT", "yyyy-MM-dd HH:mm:ss");
-        sheet.getRange(rowMatch.rowIndex, 24).setValue(nowStr);
-        c.lastLogin = nowStr;
-
-        return jsonResponse({
-          success: true,
-          verified: true,
-          message: "Authentication successful.",
-          crown: c
-        });
-      } else {
-        return jsonResponse({
-          success: false,
-          verified: false,
-          error: "Authentication failed. The phone number is wrong. Please use the one you entered at the time of registration."
-        });
-      }
-    }
-
-    // 5. PATIENT REGISTRATION (Via GET to avoid mobile browser CORS / Redirect Drops)
-    if (action === "register") {
-      return executeRegistration(sheet, {
-        id: id,
-        patientName: params.patientName || "",
-        phone: phone,
-        email: params.email || "",
-        consentAgreed: params.consentAgreed,
-        city: params.city || params.locationCity || "Unknown",
-        region: params.region || params.locationRegion || "Unknown",
-        country: params.country || params.locationCountry || "Unknown",
-        ip: params.ip || params.locationIp || "Unknown"
-      });
-    }
-
-    // 6. OPS SOFTWARE / ERP UPDATE
-    if (action === "ops_update" || action === "dispatch_update") {
-      return executeOpsUpdate(sheet, params);
-    }
-
-    return jsonResponse({ success: false, error: "Unrecognized action: " + action });
-  } catch (err) {
-    return jsonResponse({ success: false, error: "Server Exception: " + err.toString() });
-  }
+  var params = (e && e.parameter) ? e.parameter : {};
+  return route((params.action || "ping").toString().toLowerCase(), params);
 }
 
-// ----------------------------------------------------------------------------
-// 2. WEB APP POST ROUTER (JSON Webhooks & API Payloads)
-// ----------------------------------------------------------------------------
 function doPost(e) {
+  var data;
   try {
-    var raw = (e && e.postData && e.postData.contents) ? e.postData.contents : "{}";
-    var data = JSON.parse(raw);
-    var action = (data.action || "register").toLowerCase();
+    data = JSON.parse((e && e.postData && e.postData.contents) || "{}");
+  } catch (err) {
+    return jsonResponse(fail(ERR.INVALID_INPUT, "Request body must be JSON."));
+  }
+  if (!data || typeof data !== "object") data = {};
+  return route((data.action || "").toString().toLowerCase(), data);
+}
 
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = getOrInitMasterSheet(ss);
-
-    if (action === "register") {
-      return executeRegistration(sheet, {
-        id: cleanId(data.id || data.caseId || data.crownId || ""),
-        patientName: data.patientName || "",
-        phone: cleanPhone(data.phone || data.patientPhone || ""),
-        email: data.email || data.patientEmail || "",
-        consentAgreed: data.consentAgreed,
-        city: (data.location && data.location.city) || data.city || "Unknown",
-        region: (data.location && data.location.region) || data.region || "Unknown",
-        country: (data.location && data.location.country) || data.country || "Unknown",
-        ip: (data.location && data.location.ip) || data.ip || "Unknown"
-      });
+function route(action, data) {
+  try {
+    if (action === "ping") {
+      return jsonResponse({ success: true, status: "active", version: API_VERSION });
     }
-
+    if (action === "lookup") return jsonResponse(handleLookup(data));
+    if (action === "register") return jsonResponse(handleRegister(data));
+    if (action === "verify_login") return jsonResponse(handleVerifyLogin(data));
     if (action === "ops_update" || action === "dispatch_update") {
-      return executeOpsUpdate(sheet, data);
+      return jsonResponse(handleOpsUpdate(data));
+    }
+    if (action === "setup") {
+      return jsonResponse(fail(ERR.UNAUTHORIZED, "Setup must be run from the Apps Script editor."));
+    }
+    return jsonResponse(fail(ERR.UNKNOWN_ACTION, "Unrecognized action."));
+  } catch (err) {
+    console.error("Warranty API error [" + action + "]: " + (err && err.stack || err));
+    return jsonResponse(fail(ERR.SERVER_ERROR, "Something went wrong on our side. Please try again in a minute."));
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 2. HANDLERS
+// ----------------------------------------------------------------------------
+function handleLookup(data) {
+  var id = cleanId(data.id || data.caseId);
+  if (!isValidCaseId(id)) {
+    return fail(ERR.INVALID_INPUT, "Crown IDs look like ZIR-4510. Please check the label on your box.");
+  }
+
+  var sheet = getMasterSheet();
+  var match = findRowByCaseId(sheet, id);
+  if (!match) {
+    return fail(ERR.NOT_FOUND, "We couldn't find crown " + id + " in our laboratory records. Please check the label on your box.");
+  }
+
+  var crown = readCrown(match.values);
+  if (!crown.dispatchDate) {
+    return fail(ERR.NOT_DISPATCHED, "This crown hasn't been released by the laboratory yet. Your warranty can be activated once it has been dispatched to your clinic.");
+  }
+
+  if (cleanPhone(match.values[COL.PHONE - 1])) {
+    return {
+      success: true,
+      isRegistered: true,
+      crownId: crown.crownId,
+      product: crown.product,
+      maskedPhone: maskPhoneNumber(match.values[COL.PHONE - 1])
+    };
+  }
+
+  return { success: true, isRegistered: false, crown: publicCrown(crown) };
+}
+
+function handleRegister(data) {
+  var id = cleanId(data.id || data.caseId || data.crownId);
+  var patientName = cleanText(data.patientName, 80).replace(/\s+/g, " ").toUpperCase();
+  var phone = cleanPhone(data.phone || data.patientPhone);
+  var email = cleanText(data.email || data.patientEmail, 120).toLowerCase();
+  var consentAgreed = data.consentAgreed === true || data.consentAgreed === "true";
+  var loc = (data.location && typeof data.location === "object") ? data.location : data;
+
+  if (!isValidCaseId(id)) return fail(ERR.INVALID_INPUT, "A valid Crown ID is required.");
+  if (patientName.length < 2) return fail(ERR.INVALID_INPUT, "Please enter your full name.");
+  if (!isValidPhone(phone)) return fail(ERR.INVALID_INPUT, "Please enter a valid mobile number (10 digits).");
+  if (email && !isValidEmail(email)) return fail(ERR.INVALID_INPUT, "Please enter a valid email address, or leave it blank.");
+  if (!consentAgreed) return fail(ERR.INVALID_INPUT, "You need to accept the Warranty Terms and Privacy Policy.");
+
+  return withLock(function () {
+    var sheet = getMasterSheet();
+    var match = findRowByCaseId(sheet, id);
+    if (!match) {
+      return fail(ERR.NOT_FOUND, "We couldn't find crown " + id + " in our laboratory records.");
+    }
+    var crown = readCrown(match.values);
+    if (!crown.dispatchDate) {
+      return fail(ERR.NOT_DISPATCHED, "This crown hasn't been released by the laboratory yet.");
+    }
+    if (cleanPhone(match.values[COL.PHONE - 1])) {
+      return {
+        success: false,
+        code: ERR.ALREADY_REGISTERED,
+        alreadyRegistered: true,
+        maskedPhone: maskPhoneNumber(match.values[COL.PHONE - 1]),
+        error: "This crown is already registered. Please use Patient Check-In with the phone number you registered."
+      };
     }
 
-    if (action === "verify_login") {
-      var id = cleanId(data.id || data.caseId || "");
-      var phone = cleanPhone(data.phone || "");
-      var rowMatch = findRowByCaseId(sheet, id);
-      if (!rowMatch) return jsonResponse({ success: false, error: "Case ID not found." });
+    var now = nowStamp();
+    var patientCells = [
+      asText(patientName),
+      asText(phone),
+      asText(email),
+      now,
+      asText(cleanText(loc.city || loc.locationCity, 80) || "Unknown"),
+      asText(cleanText(loc.region || loc.locationRegion, 80) || "Unknown"),
+      asText(cleanText(loc.country || loc.locationCountry, 80) || "Unknown"),
+      asText(cleanText(loc.ip || loc.locationIp, 64) || "Unknown"),
+      CONSENT_LABEL + " @ " + now,
+      now
+    ];
+    sheet.getRange(match.rowIndex, COL.PATIENT, 1, patientCells.length).setValues([patientCells]);
 
-      var c = formatCrownFromRow(rowMatch.values, rowMatch.rowIndex);
-      if (phonesMatch(phone, c.phone)) {
-        var nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT", "yyyy-MM-dd HH:mm:ss");
-        sheet.getRange(rowMatch.rowIndex, 24).setValue(nowStr);
-        c.lastLogin = nowStr;
-        return jsonResponse({ success: true, verified: true, crown: c });
-      } else {
-        return jsonResponse({
-          success: false,
-          verified: false,
-          error: "Authentication failed. The phone number is wrong. Please use the one you entered at the time of registration."
-        });
+    var updated = sheet.getRange(match.rowIndex, 1, 1, NUM_COLS).getValues()[0];
+    return {
+      success: true,
+      message: "Warranty activated.",
+      crown: patientCrown(readCrown(updated), updated)
+    };
+  });
+}
+
+function handleVerifyLogin(data) {
+  var id = cleanId(data.id || data.caseId);
+  var phone = cleanPhone(data.phone);
+  if (!isValidCaseId(id)) return fail(ERR.INVALID_INPUT, "A valid Crown ID is required.");
+  if (!isValidPhone(phone)) return fail(ERR.INVALID_INPUT, "Please enter the mobile number you registered with.");
+
+  var cache = CacheService.getScriptCache();
+  var failKey = "login_fail_" + id;
+  var failures = parseInt(cache.get(failKey) || "0", 10);
+  if (failures >= MAX_FAILED_LOGINS) {
+    return fail(ERR.LOCKED, "Too many incorrect attempts. For your security, check-in for this crown is paused for 15 minutes.");
+  }
+
+  var sheet = getMasterSheet();
+  var match = findRowByCaseId(sheet, id);
+  if (!match) return fail(ERR.NOT_FOUND, "We couldn't find crown " + id + " in our laboratory records.");
+
+  var registeredPhone = cleanPhone(match.values[COL.PHONE - 1]);
+  if (!registeredPhone) {
+    return {
+      success: false,
+      code: ERR.NOT_REGISTERED,
+      needsRegistration: true,
+      error: "This crown hasn't been registered yet. Please register it first."
+    };
+  }
+
+  if (!phonesMatch(phone, registeredPhone)) {
+    failures += 1;
+    cache.put(failKey, String(failures), LOCKOUT_SECONDS);
+    var left = MAX_FAILED_LOGINS - failures;
+    return {
+      success: false,
+      code: left > 0 ? ERR.WRONG_PHONE : ERR.LOCKED,
+      verified: false,
+      attemptsLeft: Math.max(0, left),
+      error: left > 0
+        ? "That phone number doesn't match our records. Use the number you entered when you registered."
+        : "Too many incorrect attempts. For your security, check-in for this crown is paused for 15 minutes."
+    };
+  }
+
+  cache.remove(failKey);
+  var now = nowStamp();
+  sheet.getRange(match.rowIndex, COL.LAST_LOGIN).setValue(now);
+  match.values[COL.LAST_LOGIN - 1] = now;
+
+  return { success: true, verified: true, crown: patientCrown(readCrown(match.values), match.values) };
+}
+
+function handleOpsUpdate(payload) {
+  var expected = PropertiesService.getScriptProperties().getProperty("OPS_TOKEN");
+  if (!expected || !safeEquals(String(payload.token || ""), expected)) {
+    return fail(ERR.UNAUTHORIZED, "Ops token missing or invalid.");
+  }
+
+  var id = cleanId(payload.id || payload.caseId);
+  if (!isValidCaseId(id)) return fail(ERR.INVALID_INPUT, "Case ID must look like ZIR-4510.");
+
+  var tz = sheetTimeZone();
+  var dispatchDate = payload.dispatchDate || payload.dispatchedAt ? normalizeDate(payload.dispatchDate || payload.dispatchedAt, tz) : "";
+  var deliveryDate = payload.deliveryDate || payload.deliveredAt ? normalizeDate(payload.deliveryDate || payload.deliveredAt, tz) : "";
+  if ((payload.dispatchDate || payload.dispatchedAt) && !dispatchDate) {
+    return fail(ERR.INVALID_INPUT, "dispatchDate must be YYYY-MM-DD.");
+  }
+  if ((payload.deliveryDate || payload.deliveredAt) && !deliveryDate) {
+    return fail(ERR.INVALID_INPUT, "deliveryDate must be YYYY-MM-DD.");
+  }
+  var yearsGiven = payload.warrantyYears !== undefined && payload.warrantyYears !== "";
+  var years = yearsGiven ? parseInt(payload.warrantyYears, 10) : NaN;
+  if (yearsGiven && (isNaN(years) || years < 1 || years > 30)) {
+    return fail(ERR.INVALID_INPUT, "warrantyYears must be a whole number between 1 and 30.");
+  }
+  var status = cleanText(payload.dispatchStatus || payload.status, 40);
+
+  var fields = {};
+  fields[COL.MATERIAL] = payload.material;
+  fields[COL.TIER] = payload.tier;
+  fields[COL.TOOTH] = payload.tooth;
+  fields[COL.SHADE] = payload.shade;
+  fields[COL.CLINIC] = payload.clinic;
+  fields[COL.DOCTOR] = payload.doctor;
+  fields[COL.JOB_REF] = payload.jobRef;
+  fields[COL.NOTES] = payload.notes;
+
+  return withLock(function () {
+    var sheet = getMasterSheet();
+    var match = findRowByCaseId(sheet, id);
+    var row;
+    if (match) {
+      row = match.values.slice();
+    } else {
+      row = [];
+      for (var i = 0; i < NUM_COLS; i++) row.push("");
+      row[COL.ID - 1] = asText(id);
+      row[COL.STATUS - 1] = "In Production";
+      row[COL.YEARS - 1] = DEFAULT_WARRANTY_YEARS;
+    }
+
+    if (status) row[COL.STATUS - 1] = status;
+    if (dispatchDate) row[COL.DISPATCH - 1] = dispatchDate;
+    if (yearsGiven) row[COL.YEARS - 1] = years;
+    if (deliveryDate) row[COL.DELIVERY - 1] = deliveryDate;
+    for (var col in fields) {
+      if (fields[col] !== undefined && fields[col] !== null && fields[col] !== "") {
+        row[col - 1] = asText(cleanText(fields[col], 200));
       }
     }
 
-    return jsonResponse({ success: false, error: "Unknown POST action: " + action });
-  } catch (err) {
-    return jsonResponse({ success: false, error: "POST Exception: " + err.toString() });
-  }
-}
+    var effectiveDispatch = normalizeDate(row[COL.DISPATCH - 1], tz);
+    if (/dispatched|delivered/i.test(String(row[COL.STATUS - 1])) && !effectiveDispatch) {
+      effectiveDispatch = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd");
+      row[COL.DISPATCH - 1] = effectiveDispatch;
+    }
+    if (payload.expiryDate) {
+      var explicitExpiry = normalizeDate(payload.expiryDate, tz);
+      if (!explicitExpiry) return fail(ERR.INVALID_INPUT, "expiryDate must be YYYY-MM-DD.");
+      row[COL.EXPIRY - 1] = explicitExpiry;
+    } else if (effectiveDispatch) {
+      row[COL.EXPIRY - 1] = computeExpiryDate(effectiveDispatch, parseInt(row[COL.YEARS - 1], 10) || DEFAULT_WARRANTY_YEARS);
+    }
 
-// ----------------------------------------------------------------------------
-// 3. CORE REGISTRATION HANDLER
-// ----------------------------------------------------------------------------
-function executeRegistration(sheet, data) {
-  var id = cleanId(data.id);
-  var patientName = (data.patientName || "").trim().toUpperCase();
-  var phone = cleanPhone(data.phone);
-  var email = (data.email || "").trim().toLowerCase();
-  var consentAgreed = (data.consentAgreed === true || data.consentAgreed === "true");
+    row = row.map(formulaSafe);
+    var opsCells = row.slice(0, COL.NOTES);
+    var rowIndex;
+    if (match) {
+      rowIndex = match.rowIndex;
+      sheet.getRange(rowIndex, 1, 1, opsCells.length).setValues([opsCells]);
+    } else {
+      rowIndex = sheet.getLastRow() + 1;
+      sheet.getRange(rowIndex, 1, 1, NUM_COLS).setValues([row]);
+    }
 
-  if (!id) {
-    return jsonResponse({ success: false, error: "Case ID is required." });
-  }
-  if (!patientName) {
-    return jsonResponse({ success: false, error: "Patient name is required." });
-  }
-  if (phone.length < 10) {
-    return jsonResponse({ success: false, error: "A valid 10-digit mobile number is required." });
-  }
-  if (!consentAgreed) {
-    return jsonResponse({ success: false, error: "Patient must accept terms & data sharing consent." });
-  }
-
-  var rowMatch = findRowByCaseId(sheet, id);
-  if (!rowMatch) {
-    return jsonResponse({
-      success: false,
-      error: "Case ID (" + id + ") not found in laboratory records. Please check the label on your box."
-    });
-  }
-
-  var currentRow = rowMatch.values;
-  var existingPhone = cleanPhone(currentRow[15]); // Column 16: Registered Phone
-
-  // Anti-Fraud check: lock phone once registered
-  if (existingPhone.length > 0) {
-    return jsonResponse({
-      success: false,
-      alreadyRegistered: true,
-      error: "This crown has already been registered with a phone number. Please use the Patient Check-In tab."
-    });
-  }
-
-  var now = new Date();
-  var tz = Session.getScriptTimeZone() || "GMT";
-  var regTimestamp = Utilities.formatDate(now, tz, "yyyy-MM-dd HH:mm:ss");
-  var consentText = "AGREED - v1.0 [T&C + Privacy Policy]";
-
-  // Write Patient Details directly into Columns 15 to 24 of the Master Row
-  var rowIdx = rowMatch.rowIndex;
-  sheet.getRange(rowIdx, 15).setValue(patientName);            // Col 15: Patient Name
-  sheet.getRange(rowIdx, 16).setValue("'" + phone);           // Col 16: Registered Phone (stored as text)
-  sheet.getRange(rowIdx, 17).setValue(email);                 // Col 17: Registered Email
-  sheet.getRange(rowIdx, 18).setValue(regTimestamp);          // Col 18: Registration Date
-  sheet.getRange(rowIdx, 19).setValue(data.city || "Unknown"); // Col 19: Patient Address (City from IP)
-  sheet.getRange(rowIdx, 20).setValue(data.region || "Unknown"); // Col 20: Patient Region / State
-  sheet.getRange(rowIdx, 21).setValue(data.country || "Unknown"); // Col 21: Patient Country
-  sheet.getRange(rowIdx, 22).setValue(data.ip || "Unknown");  // Col 22: Patient IP Address
-  sheet.getRange(rowIdx, 23).setValue(consentText);           // Col 23: T&C Consent Status
-  sheet.getRange(rowIdx, 24).setValue(regTimestamp);          // Col 24: Last Check-In Date
-
-  // Fetch updated row and format full crown card
-  var updatedRow = sheet.getRange(rowIdx, 1, 1, 24).getValues()[0];
-  var crownObj = formatCrownFromRow(updatedRow, rowIdx);
-
-  return jsonResponse({
-    success: true,
-    message: "Warranty activated successfully. Details recorded in Master Registry.",
-    crown: crownObj
+    var updated = sheet.getRange(rowIndex, 1, 1, NUM_COLS).getValues()[0];
+    return {
+      success: true,
+      created: !match,
+      message: (match ? "Updated " : "Created ") + "case " + id,
+      crown: publicCrown(readCrown(updated)),
+      isRegistered: !!cleanPhone(updated[COL.PHONE - 1])
+    };
   });
 }
 
 // ----------------------------------------------------------------------------
-// 4. OPS SOFTWARE / ERP INTEGRATION HANDLER
+// 3. CROWN VIEWS (what each caller is allowed to see)
 // ----------------------------------------------------------------------------
-function executeOpsUpdate(sheet, payload) {
-  var id = cleanId(payload.id || payload.caseId || "");
-  if (!id) {
-    return jsonResponse({ success: false, error: "Case ID is required for Ops update." });
-  }
+function readCrown(r) {
+  var tz = sheetTimeZone();
+  var id = cleanId(r[COL.ID - 1]);
+  var years = parseInt(r[COL.YEARS - 1], 10);
+  if (isNaN(years) || years <= 0) years = DEFAULT_WARRANTY_YEARS;
+  var dispatchDate = normalizeDate(r[COL.DISPATCH - 1], tz);
+  var expiryDate = normalizeDate(r[COL.EXPIRY - 1], tz) || (dispatchDate ? computeExpiryDate(dispatchDate, years) : "");
+  var product = str(r[COL.MATERIAL - 1]);
+  var tier = str(r[COL.TIER - 1]);
 
-  var dispatchStatus = payload.dispatchStatus || payload.status || "Dispatched";
-  var dispatchDate = payload.dispatchDate || payload.dispatchedAt || "";
-  var deliveryDate = payload.deliveryDate || payload.deliveredAt || "";
-  var warrantyYears = parseInt(payload.warrantyYears || 5, 10);
-  if (isNaN(warrantyYears) || warrantyYears <= 0) warrantyYears = 5;
+  return {
+    crownId: id,
+    warrantyId: buildWarrantyId(id, dispatchDate),
+    dispatchStatus: str(r[COL.STATUS - 1]),
+    dispatchDate: dispatchDate,
+    deliveryDate: normalizeDate(r[COL.DELIVERY - 1], tz),
+    warrantyYears: years,
+    expiryDate: expiryDate,
+    product: product,
+    tier: tier,
+    materialFull: [product, tier].filter(function (x) { return x; }).join(" · "),
+    tooth: str(r[COL.TOOTH - 1]),
+    shade: str(r[COL.SHADE - 1]),
+    clinic: str(r[COL.CLINIC - 1]),
+    dentist: str(r[COL.DOCTOR - 1]),
+    caseRef: str(r[COL.JOB_REF - 1])
+  };
+}
 
-  // If dispatch date is provided, compute Warranty Expiry Date
-  var expiryDate = payload.expiryDate || "";
-  if (dispatchDate && !expiryDate) {
-    expiryDate = computeExpiryDate(dispatchDate, warrantyYears);
-  }
+function publicCrown(c) {
+  return {
+    crownId: c.crownId, warrantyId: c.warrantyId, dispatchStatus: c.dispatchStatus,
+    dispatchDate: c.dispatchDate, deliveryDate: c.deliveryDate, warrantyYears: c.warrantyYears,
+    expiryDate: c.expiryDate, product: c.product, tier: c.tier, materialFull: c.materialFull,
+    tooth: c.tooth, shade: c.shade, clinic: c.clinic, dentist: c.dentist, caseRef: c.caseRef
+  };
+}
 
-  var rowMatch = findRowByCaseId(sheet, id);
-  var rowIdx;
+function patientCrown(c, r) {
+  var out = publicCrown(c);
+  out.patient = str(r[COL.PATIENT - 1]).toUpperCase();
+  out.maskedPhone = maskPhoneNumber(r[COL.PHONE - 1]);
+  out.registeredAt = str(r[COL.REGISTERED_AT - 1] instanceof Date
+    ? Utilities.formatDate(r[COL.REGISTERED_AT - 1], sheetTimeZone(), "yyyy-MM-dd HH:mm:ss")
+    : r[COL.REGISTERED_AT - 1]);
+  return out;
+}
 
-  if (rowMatch) {
-    // Update existing row
-    rowIdx = rowMatch.rowIndex;
-    if (dispatchStatus) sheet.getRange(rowIdx, 2).setValue(dispatchStatus);
-    if (dispatchDate)   sheet.getRange(rowIdx, 3).setValue(dispatchDate);
-    if (warrantyYears)  sheet.getRange(rowIdx, 4).setValue(warrantyYears);
-    if (expiryDate)    sheet.getRange(rowIdx, 5).setValue(expiryDate);
-    if (deliveryDate)  sheet.getRange(rowIdx, 6).setValue(deliveryDate);
-
-    // Optional metadata updates from Ops
-    if (payload.material)  sheet.getRange(rowIdx, 7).setValue(payload.material);
-    if (payload.tier)      sheet.getRange(rowIdx, 8).setValue(payload.tier);
-    if (payload.tooth)     sheet.getRange(rowIdx, 9).setValue(payload.tooth);
-    if (payload.shade)     sheet.getRange(rowIdx, 10).setValue(payload.shade);
-    if (payload.clinic)    sheet.getRange(rowIdx, 11).setValue(payload.clinic);
-    if (payload.doctor)    sheet.getRange(rowIdx, 12).setValue(payload.doctor);
-    if (payload.jobRef)    sheet.getRange(rowIdx, 13).setValue(payload.jobRef);
-    if (payload.notes)     sheet.getRange(rowIdx, 14).setValue(payload.notes);
-  } else {
-    // Append new prosthesis row dispatched from laboratory
-    var newRow = [
-      id,                                                 // [1] Case ID
-      dispatchStatus,                                     // [2] Dispatch Status
-      dispatchDate,                                       // [3] Dispatch Date (Warranty Start)
-      warrantyYears,                                      // [4] Warranty Years
-      expiryDate,                                         // [5] Warranty Expiry Date
-      deliveryDate,                                       // [6] Delivery Date
-      payload.material || "Zirconia Crown",               // [7] Material
-      payload.tier || "Multi-Layer 3D Pro",               // [8] Material Tier
-      payload.tooth || "16, 17",                          // [9] Tooth Number
-      payload.shade || "A2",                              // [10] Shade
-      payload.clinic || "Smile Studio Dental Care",       // [11] Clinic Name
-      payload.doctor || "Dr Aarav Deshmukh",              // [12] Doctor Name
-      payload.jobRef || ("JOB-" + id.replace(/\D/g, "")), // [13] Job Ref
-      payload.notes || "Dispatched via Ops Software",     // [14] Ops Notes
-      "", "", "", "", "", "", "", "", "", ""             // [15-24] Unregistered patient slots
-    ];
-    sheet.appendRow(newRow);
-    rowIdx = sheet.getLastRow();
-  }
-
-  var updatedRow = sheet.getRange(rowIdx, 1, 1, 24).getValues()[0];
-  var crownObj = formatCrownFromRow(updatedRow, rowIdx);
-
-  return jsonResponse({
-    success: true,
-    message: "Ops software successfully updated case " + id,
-    crown: crownObj
-  });
+function buildWarrantyId(id, dispatchDate) {
+  var code = id.replace(/[^A-Z0-9]/g, "");
+  if (!code) return "";
+  var stamp = dispatchDate ? dispatchDate.slice(2, 4) + dispatchDate.slice(5, 7) : "";
+  return ["HLW", code.slice(0, 3), code.slice(3), stamp].filter(function (x) { return x; }).join(" ");
 }
 
 // ----------------------------------------------------------------------------
-// 5. MASTER SHEET INITIALIZER & BUILDER
+// 4. SHEET SETUP (run from the editor)
 // ----------------------------------------------------------------------------
 function setupMasterSheet(targetSpreadsheet) {
   var ss = targetSpreadsheet || SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(SHEET_NAME);
+  var sheet = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME, 0);
 
-  if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME, 0);
-  }
-
-  // Remove existing filter if present
   var existingFilter = sheet.getFilter();
-  if (existingFilter) {
-    existingFilter.remove();
-  }
+  if (existingFilter) existingFilter.remove();
 
-  // Define 24-Column Headers
-  var headers = [
-    // --- OPS & LABORATORY PRODUCTION (Columns 1-14) ---
-    "Case ID",
-    "Dispatch Status",
-    "Dispatch Date (Warranty Start)",
-    "Warranty Period (Years)",
-    "Warranty Expiry Date (Final)",
-    "Delivery Date",
-    "Material",
-    "Material Tier",
-    "Tooth Number(s)",
-    "Shade",
-    "Clinic Name",
-    "Doctor Name",
-    "Lab Job Ref / Serial",
-    "Ops Quality Notes",
-
-    // --- PATIENT SELF-REGISTRATION & GEOLOCATION (Columns 15-24) ---
-    "Patient Name",
-    "Registered Phone",
-    "Registered Email",
-    "Registration Timestamp",
-    "Patient Address (City from IP)",
-    "Patient Region / State",
-    "Patient Country",
-    "Patient IP Address",
-    "T&C & Consent Status",
-    "Last Check-In Date"
-  ];
-
-  // Set Row 1 Headers
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-
-  // Style Ops Headers (Columns 1-14: Dark Navy #052659)
-  var opsHeaderRange = sheet.getRange(1, 1, 1, 14);
-  opsHeaderRange.setBackground("#052659");
-  opsHeaderRange.setFontColor("#FFFFFF");
-  opsHeaderRange.setFontWeight("bold");
-  opsHeaderRange.setFontSize(10);
-  opsHeaderRange.setHorizontalAlignment("center");
-
-  // Style Patient Headers (Columns 15-24: Emerald Teal #0D5C75)
-  var patientHeaderRange = sheet.getRange(1, 15, 1, 10);
-  patientHeaderRange.setBackground("#0D5C75");
-  patientHeaderRange.setFontColor("#FFFFFF");
-  patientHeaderRange.setFontWeight("bold");
-  patientHeaderRange.setFontSize(10);
-  patientHeaderRange.setHorizontalAlignment("center");
-
+  sheet.getRange(1, 1, 1, NUM_COLS).setValues([HEADERS]);
+  sheet.getRange(1, 1, 1, 14).setBackground("#052659").setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10).setHorizontalAlignment("center");
+  sheet.getRange(1, 15, 1, 10).setBackground("#0D5C75").setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10).setHorizontalAlignment("center");
   sheet.setRowHeight(1, 38);
-
-  // Freeze Header Row & Case ID Column
   sheet.setFrozenRows(1);
   sheet.setFrozenColumns(1);
 
-  // Pre-populate Standard Starter Cases if Sheet is brand new
-  if (sheet.getLastRow() <= 1) {
-    var starterRows = [
-      [
-        "ZIR-4510",
-        "Dispatched",
-        "2026-08-19",
-        5,
-        "2031-08-19",
-        "2026-08-21",
-        "Zirconia Crown",
-        "Multi-Layer 3D Pro",
-        "16, 17",
-        "A2",
-        "Smile Studio Dental Care, Nagpur",
-        "Dr Aarav Deshmukh",
-        "JOB-1042",
-        "Batch-A8 · Precision Sintered · Passed QA",
-        "", "", "", "", "", "", "", "", "", ""
-      ],
-      [
-        "CER-8942",
-        "Delivered",
-        "2026-10-15",
-        5,
-        "2031-10-15",
-        "2026-10-17",
-        "Ceramic Crown",
-        "Ceramic-Hybrid Prime",
-        "19 (Molar)",
-        "B1",
-        "Apex Dental Care, Mumbai",
-        "Dr Sarah Jenkins",
-        "JOB-1088",
-        "Glazed Finish · Delivered to Clinic",
-        "JANE DOE",
-        "'9822012345",
-        "jane.doe@example.com",
-        "2026-10-15 11:30:00",
-        "Mumbai",
-        "Maharashtra",
-        "India",
-        "203.0.113.19",
-        "AGREED - v1.0 [T&C + Privacy Policy]",
-        "2026-10-25 14:10:00"
-      ],
-      [
-        "EMX-1001",
-        "Dispatched",
-        "2026-10-01",
-        5,
-        "2031-10-01",
-        "2026-10-03",
-        "E.max Crown",
-        "Lithium Disilicate",
-        "8 (Central Incisor)",
-        "BL2",
-        "Prime Aesthetics Lab, Delhi",
-        "Dr Arthur Miller",
-        "JOB-1102",
-        "High Translucency · Dispatched via Express",
-        "", "", "", "", "", "", "", "", "", ""
-      ],
-      [
-        "CER-1001",
-        "In Production",
-        "",
-        5,
-        "",
-        "",
-        "Ceramic Crown",
-        "Ceramic-Hybrid Prime",
-        "14 (Premolar)",
-        "A1",
-        "Summit Dental Group, Bangalore",
-        "Dr Lisa Ray",
-        "JOB-1090",
-        "Milling stage · Awaiting final firing",
-        "", "", "", "", "", "", "", "", "", ""
-      ]
-    ];
+  var maxRows = Math.max(sheet.getMaxRows ? sheet.getMaxRows() : sheet.getLastRow(), 2);
+  sheet.getRange(1, 1, Math.max(sheet.getLastRow(), 2), NUM_COLS).createFilter();
+  // Case IDs and phones must stay text (leading zeros, no number coercion).
+  sheet.getRange(2, COL.ID, maxRows - 1, 1).setNumberFormat("@");
+  sheet.getRange(2, COL.PHONE, maxRows - 1, 1).setNumberFormat("@");
+  sheet.getRange(2, COL.DISPATCH, maxRows - 1, 4).setNumberFormat("yyyy-mm-dd");
 
-    sheet.getRange(2, 1, starterRows.length, 24).setValues(starterRows);
-  }
+  var widths = [110, 130, 150, 120, 150, 130, 140, 150, 120, 80, 210, 160, 140, 220, 160, 140, 190, 160, 130, 130, 110, 130, 260, 160];
+  for (var c = 0; c < widths.length; c++) sheet.setColumnWidth(c + 1, widths[c]);
+  return sheet;
+}
 
-  // Create Native Filter on Entire Data Range
-  var maxRows = Math.max(sheet.getLastRow(), 2);
-  sheet.getRange(1, 1, maxRows, 24).createFilter();
-
-  // Set Column Formats & Alignments
-  sheet.getRange(2, 1, maxRows - 1, 1).setNumberFormat("@").setHorizontalAlignment("center");  // Case ID
-  sheet.getRange(2, 2, maxRows - 1, 1).setHorizontalAlignment("center");                        // Status
-  sheet.getRange(2, 3, maxRows - 1, 4).setHorizontalAlignment("center");                        // Dates
-  sheet.getRange(2, 16, maxRows - 1, 1).setNumberFormat("@").setHorizontalAlignment("center"); // Phone text
-  sheet.getRange(2, 18, maxRows - 1, 1).setHorizontalAlignment("center");                       // Reg Timestamp
-  sheet.getRange(2, 22, maxRows - 1, 1).setHorizontalAlignment("center");                       // IP
-  sheet.getRange(2, 24, maxRows - 1, 1).setHorizontalAlignment("center");                       // Last Check-In
-
-  // Set Proportional Column Widths
-  var widths = [
-    110, // 1. Case ID
-    130, // 2. Dispatch Status
-    150, // 3. Dispatch Date
-    120, // 4. Warranty Years
-    150, // 5. Warranty Expiry
-    130, // 6. Delivery Date
-    140, // 7. Material
-    150, // 8. Material Tier
-    120, // 9. Tooth Number
-    80,  // 10. Shade
-    210, // 11. Clinic Name
-    160, // 12. Doctor Name
-    140, // 13. Lab Job Ref
-    220, // 14. Ops Notes
-    160, // 15. Patient Name
-    140, // 16. Registered Phone
-    190, // 17. Registered Email
-    160, // 18. Reg Timestamp
-    130, // 19. City
-    130, // 20. Region
-    110, // 21. Country
-    130, // 22. IP Address
-    220, // 23. Consent Status
-    160  // 24. Last Check-In
+/** Test sheets only: adds sample cases if the registry is empty. */
+function seedDemoCases() {
+  var sheet = getMasterSheet();
+  if (sheet.getLastRow() > 1) return "Registry already has data — nothing seeded.";
+  var blank = ["", "", "", "", "", "", "", "", "", ""];
+  var rows = [
+    ["ZIR-4510", "Dispatched", "2026-08-19", 5, "2031-08-19", "2026-08-21", "Zirconia Crown", "Multi-Layer 3D Pro", "16, 17", "A2", "Smile Studio Dental Care, Nagpur", "Dr Aarav Deshmukh", "JOB-1042", "Batch-A8 · Passed QA"].concat(blank),
+    ["EMX-1001", "Dispatched", "2026-10-01", 5, "2031-10-01", "2026-10-03", "E.max Crown", "Lithium Disilicate", "11", "BL2", "Prime Aesthetics, Delhi", "Dr Arthur Miller", "JOB-1102", ""].concat(blank),
+    ["CER-1001", "In Production", "", 5, "", "", "Ceramic Crown", "Ceramic-Hybrid Prime", "14", "A1", "Summit Dental Group, Bangalore", "Dr Lisa Ray", "JOB-1090", "Milling"].concat(blank)
   ];
-
-  for (var c = 0; c < widths.length; c++) {
-    sheet.setColumnWidth(c + 1, widths[c]);
-  }
+  sheet.getRange(2, 1, rows.length, NUM_COLS).setValues(rows);
+  return "Seeded " + rows.length + " demo cases.";
 }
 
 // ----------------------------------------------------------------------------
-// 6. ON-EDIT TRIGGER: AUTO-CALCULATE EXPIRY ON DIRECT SHEET EDITS
+// 5. ON-EDIT TRIGGER: keep expiry in sync with manual sheet edits
 // ----------------------------------------------------------------------------
 function onEdit(e) {
   try {
@@ -606,257 +467,171 @@ function onEdit(e) {
     var range = e.range;
     var sheet = range.getSheet();
     if (sheet.getName() !== SHEET_NAME) return;
+    var tz = sheetTimeZone();
 
-    var row = range.getRow();
-    var col = range.getColumn();
-    if (row <= 1) return; // Ignore header
+    var firstRow = Math.max(range.getRow(), 2);
+    var lastRow = range.getRow() + range.getNumRows() - 1;
+    var firstCol = range.getColumn();
+    var lastCol = firstCol + range.getNumColumns() - 1;
+    if (lastRow < 2 || lastCol < COL.STATUS || firstCol > COL.YEARS) return;
 
-    // If Dispatch Date (Col 3) or Warranty Years (Col 4) is modified
-    if (col === 3 || col === 4) {
-      var dispatchVal = sheet.getRange(row, 3).getValue();
-      var yearsVal = parseInt(sheet.getRange(row, 4).getValue() || 5, 10);
-      if (dispatchVal) {
-        var expStr = computeExpiryDate(dispatchVal, yearsVal);
-        sheet.getRange(row, 5).setValue(expStr);
+    for (var row = firstRow; row <= lastRow; row++) {
+      var vals = sheet.getRange(row, COL.STATUS, 1, 3).getValues()[0]; // status, dispatch, years
+      var dispatch = normalizeDate(vals[1], tz);
+      var years = parseInt(vals[2], 10) || DEFAULT_WARRANTY_YEARS;
+      if (!dispatch && /dispatched|delivered/i.test(String(vals[0]))) {
+        dispatch = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd");
+        sheet.getRange(row, COL.DISPATCH).setValue(dispatch);
       }
-    }
-
-    // If Dispatch Status (Col 2) is changed to "Dispatched" and Dispatch Date (Col 3) is empty
-    if (col === 2) {
-      var statusVal = range.getValue().toString().trim();
-      var currentDispatchDate = sheet.getRange(row, 3).getValue();
-      if (/dispatched/i.test(statusVal) && !currentDispatchDate) {
-        var todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT", "yyyy-MM-dd");
-        sheet.getRange(row, 3).setValue(todayStr);
-        var years = parseInt(sheet.getRange(row, 4).getValue() || 5, 10);
-        sheet.getRange(row, 5).setValue(computeExpiryDate(todayStr, years));
-      }
+      if (dispatch) sheet.getRange(row, COL.EXPIRY).setValue(computeExpiryDate(dispatch, years));
     }
   } catch (err) {
-    // Gracefully ignore sheet edit errors
+    console.error("onEdit error: " + err);
   }
 }
 
 // ----------------------------------------------------------------------------
-// 7. HELPER UTILITIES
+// 6. HELPERS
 // ----------------------------------------------------------------------------
-function getOrInitMasterSheet(ss) {
-  var sheet = ss.getSheetByName(SHEET_NAME);
-  if (!sheet) {
-    setupMasterSheet(ss);
-    sheet = ss.getSheetByName(SHEET_NAME);
+function getMasterSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  return ss.getSheetByName(SHEET_NAME) || setupMasterSheet(ss);
+}
+
+function sheetTimeZone() {
+  try {
+    return SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone() || Session.getScriptTimeZone() || "Asia/Kolkata";
+  } catch (e) {
+    return Session.getScriptTimeZone() || "Asia/Kolkata";
   }
-  return sheet;
+}
+
+function nowStamp() {
+  return Utilities.formatDate(new Date(), sheetTimeZone(), "yyyy-MM-dd HH:mm:ss");
 }
 
 function findRowByCaseId(sheet, searchId) {
-  var normSearch = cleanId(searchId);
-  if (!normSearch) return null;
-
+  var target = cleanId(searchId);
   var lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return null;
-
-  var data = sheet.getRange(1, 1, lastRow, 24).getValues();
-  for (var i = 1; i < data.length; i++) {
-    var rowId = cleanId(data[i][0]);
-    if (rowId === normSearch) {
-      return { rowIndex: i + 1, values: data[i] };
+  if (!target || lastRow < 2) return null;
+  var ids = sheet.getRange(2, COL.ID, lastRow - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (cleanId(ids[i][0]) === target) {
+      var rowIndex = i + 2;
+      return { rowIndex: rowIndex, values: sheet.getRange(rowIndex, 1, 1, NUM_COLS).getValues()[0] };
     }
   }
   return null;
 }
 
-function computeExpiryDate(dispatchDateInput, years) {
+function withLock(fn) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) {
+    return fail(ERR.BUSY, "The registry is busy. Please try again in a few seconds.");
+  }
   try {
-    var d;
-    if (dispatchDateInput instanceof Date) {
-      d = new Date(dispatchDateInput.getTime());
-    } else {
-      var s = dispatchDateInput.toString().trim();
-      d = new Date(s);
-      if (isNaN(d.getTime())) {
-        var parts = s.split(/[-/]/);
-        if (parts.length === 3) {
-          d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-        }
-      }
-    }
-
-    if (!isNaN(d.getTime())) {
-      d.setFullYear(d.getFullYear() + (years || 5));
-      return Utilities.formatDate(d, "GMT", "yyyy-MM-dd");
-    }
-  } catch (e) {}
-
-  // Fallback text calculation
-  var str = dispatchDateInput.toString();
-  var match = str.match(/(\d{4})/);
-  if (match) {
-    var y = parseInt(match[1], 10) + (years || 5);
-    return str.replace(match[1], y.toString());
+    var result = fn();
+    SpreadsheetApp.flush();
+    return result;
+  } finally {
+    lock.releaseLock();
   }
-  return "";
 }
 
-function formatCrownFromRow(r, rowIdx) {
-  var id = (r[0] || "").toString().trim().toUpperCase();
-  var status = (r[1] || "Dispatched").toString().trim();
-  var rawDispatch = r[2];
-  var years = parseInt(r[3] || 5, 10);
-  var rawExpiry = r[4];
-  var rawDelivery = r[5];
-
-  var mat = (r[6] || "Zirconia Crown").toString().trim();
-  var tier = (r[7] || "Multi-Layer 3D Pro").toString().trim();
-  var tooth = (r[8] || "16, 17").toString().trim();
-  var shade = (r[9] || "A2").toString().trim();
-  var clinic = (r[10] || "Smile Studio Dental Care, Nagpur").toString().trim();
-  var doctor = (r[11] || "Dr Aarav Deshmukh").toString().trim();
-  var serial = (r[12] || ("JOB-" + id.replace(/\D/g, ""))).toString().trim();
-  var opsNotes = (r[13] || "").toString().trim();
-
-  var patient = (r[14] || "").toString().trim().toUpperCase();
-  var phone = cleanPhone(r[15]);
-  var email = (r[16] || "").toString().trim();
-  var regAt = (r[17] || "").toString().trim();
-  var city = (r[18] || "").toString().trim();
-  var region = (r[19] || "").toString().trim();
-  var country = (r[20] || "").toString().trim();
-  var ip = (r[21] || "").toString().trim();
-  var consent = (r[22] || "").toString().trim();
-  var lastLogin = (r[23] || "").toString().trim();
-
-  // Normalize Dispatch Date (Warranty Start)
-  var dispatchStr = "";
-  if (rawDispatch instanceof Date) {
-    dispatchStr = Utilities.formatDate(rawDispatch, "GMT", "yyyy-MM-dd");
-  } else if (rawDispatch) {
-    dispatchStr = rawDispatch.toString().trim();
+/** Returns "yyyy-MM-dd" for a sheet Date, ISO string, or dd/mm/yyyy string; "" if unparseable. */
+function normalizeDate(value, tz) {
+  if (value === null || value === undefined || value === "") return "";
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? "" : Utilities.formatDate(value, tz || sheetTimeZone(), "yyyy-MM-dd");
   }
-
-  // Normalize Expiry Date (Final Warranty Date)
-  var expiryStr = "";
-  if (rawExpiry instanceof Date) {
-    expiryStr = Utilities.formatDate(rawExpiry, "GMT", "yyyy-MM-dd");
-  } else if (rawExpiry) {
-    expiryStr = rawExpiry.toString().trim();
-  } else if (dispatchStr) {
-    expiryStr = computeExpiryDate(dispatchStr, years);
+  var s = value.toString().trim();
+  var m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:$|[T\s])/);
+  var y, mo, d;
+  if (m) {
+    y = +m[1]; mo = +m[2]; d = +m[3];
+  } else {
+    m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/); // Indian dd/mm/yyyy
+    if (!m) return "";
+    d = +m[1]; mo = +m[2]; y = +m[3];
   }
-
-  // Normalize Delivery Date
-  var deliveryStr = "";
-  if (rawDelivery instanceof Date) {
-    deliveryStr = Utilities.formatDate(rawDelivery, "GMT", "yyyy-MM-dd");
-  } else if (rawDelivery) {
-    deliveryStr = rawDelivery.toString().trim();
-  }
-
-  // Formatted human-readable dates for card front & back
-  var issuedDisplay = "Pending Dispatch";
-  var issuedFull = "Pending Lab Dispatch";
-  var issuedYear = new Date().getFullYear().toString();
-  var validThru = "Pending";
-  var validUntil = "Pending Dispatch";
-
-  if (dispatchStr) {
-    var dMatch = dispatchStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (dMatch) {
-      var dYear = dMatch[1];
-      var dMonth = parseInt(dMatch[2], 10);
-      var dDay = parseInt(dMatch[3], 10);
-      var monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      var mName = monthNames[dMonth - 1] || "Aug";
-
-      issuedDisplay = dDay + " " + mName + " " + dYear.slice(-2);
-      issuedFull = dDay + " " + mName + " " + dYear;
-      issuedYear = dYear;
-    } else {
-      issuedDisplay = dispatchStr;
-      issuedFull = dispatchStr;
-    }
-  }
-
-  if (expiryStr) {
-    var eMatch = expiryStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (eMatch) {
-      var eYear = eMatch[1];
-      var eMonth = parseInt(eMatch[2], 10);
-      var eDay = parseInt(eMatch[3], 10);
-      var monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      var mName = monthNames[eMonth - 1] || "Aug";
-
-      validThru = (eMonth < 10 ? "0" + eMonth : eMonth) + " / " + eYear.slice(-2);
-      validUntil = eDay + " " + mName + " " + eYear;
-    } else {
-      validThru = expiryStr;
-      validUntil = expiryStr;
-    }
-  }
-
-  var code = id.replace(/[^A-Z0-9]/g, "");
-  var warrantyCode = "HLW " + (code.slice(0, 3) || "ZIR") + " " + (code.slice(3) || "4510") + " " + issuedYear.slice(-2) + "08";
-
-  return {
-    crownId: id,
-    dispatchStatus: status,
-    dispatchDate: dispatchStr,
-    deliveryDate: deliveryStr,
-    warrantyYears: years,
-    expiryDate: expiryStr,
-    product: mat,
-    tier: tier,
-    materialFull: mat + (tier ? " · " + tier : ""),
-    tooth: tooth,
-    shade: shade,
-    clinic: clinic,
-    dentist: doctor,
-    caseRef: serial.startsWith("JOB-") ? serial : "JOB-" + serial,
-    opsNotes: opsNotes,
-    patient: patient || "UNREGISTERED PROSTHESIS",
-    phone: phone,
-    email: email,
-    registeredAt: regAt,
-    locationCity: city,
-    locationRegion: region,
-    locationCountry: country,
-    locationIp: ip,
-    consentAgreed: consent,
-    lastLogin: lastLogin,
-    issued: issuedDisplay,
-    issuedFull: issuedFull,
-    issuedYear: issuedYear,
-    validThru: validThru,
-    validUntil: validUntil,
-    warrantyId: warrantyCode
-  };
+  var check = new Date(Date.UTC(y, mo - 1, d));
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) return "";
+  return y + "-" + pad2(mo) + "-" + pad2(d);
 }
+
+/** Adds whole years to a yyyy-MM-dd date. 29 Feb rolls back to 28 Feb in non-leap years. */
+function computeExpiryDate(isoDate, years) {
+  var iso = normalizeDate(isoDate, sheetTimeZone());
+  if (!iso) return "";
+  var y = +iso.slice(0, 4) + (years || DEFAULT_WARRANTY_YEARS);
+  var mo = +iso.slice(5, 7);
+  var d = +iso.slice(8, 10);
+  var daysInMonth = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  return y + "-" + pad2(mo) + "-" + pad2(Math.min(d, daysInMonth));
+}
+
+function pad2(n) { return (n < 10 ? "0" : "") + n; }
+
+function str(v) { return (v === null || v === undefined) ? "" : v.toString().trim(); }
 
 function cleanId(val) {
-  return (val || "").toString().trim().toUpperCase();
+  return str(val).toUpperCase().replace(/\s+/g, "");
+}
+
+function isValidCaseId(id) {
+  return /^[A-Z]{3}-\d{4}$/.test(id);
 }
 
 function cleanPhone(val) {
-  return (val || "").toString().replace(/\D/g, "");
+  return str(val).replace(/\D/g, "");
+}
+
+function isValidPhone(digits) {
+  return digits.length >= 10 && digits.length <= 15;
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+}
+
+/** Strips control characters and caps length. */
+function cleanText(val, maxLen) {
+  return str(val).replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, maxLen || 200);
+}
+
+/** Forces a value to be stored as literal text (never a formula or number). */
+function asText(val) {
+  var s = str(val);
+  return s ? "'" + s : "";
+}
+
+/** Text read back from the sheet loses its "'" prefix; re-guard it before writing it again. */
+function formulaSafe(val) {
+  return (typeof val === "string" && /^[=+\-@]/.test(val)) ? "'" + val : val;
 }
 
 function phonesMatch(p1, p2) {
-  var s1 = cleanPhone(p1);
-  var s2 = cleanPhone(p2);
-  if (!s1 || !s2) return false;
-  var sub1 = s1.length >= 10 ? s1.slice(-10) : s1;
-  var sub2 = s2.length >= 10 ? s2.slice(-10) : s2;
-  return sub1 === sub2;
+  var a = cleanPhone(p1), b = cleanPhone(p2);
+  if (a.length < 10 || b.length < 10) return false;
+  return a.slice(-10) === b.slice(-10);
 }
 
 function maskPhoneNumber(val) {
   var c = cleanPhone(val);
-  if (!c) return "";
-  var last4 = c.slice(-4);
-  return "ending in ••••• " + last4;
+  return c ? "ending in " + c.slice(-4) : "";
+}
+
+function safeEquals(a, b) {
+  if (a.length !== b.length) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function fail(code, message) {
+  return { success: false, code: code, error: message };
 }
 
 function jsonResponse(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }

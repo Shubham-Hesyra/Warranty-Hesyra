@@ -1,670 +1,822 @@
 /**
- * Hesyra Labs — Digital Crown Warranty Application
- * Standard Production Implementation of Warranty Card v4
+ * Hesyra Labs — Digital Crown Warranty portal (v2.0.0)
+ *
+ * Talks to the Apps Script backend in google_sheets_setup.gs. There is no
+ * offline/local fallback: a registration is only confirmed once the registry
+ * has stored it.
  */
+(function () {
+  'use strict';
 
-// 1. Comprehensive Crown Database
-const CROWN_DB = {
-  'ZIR-4510': {
-    material: 'Zirconia Crown',
-    materialFull: 'Zirconia crown · multi-layer',
-    tooth: '16, 17',
-    shade: 'A2',
-    caseRef: 'JOB-1042',
-    dentist: 'Dr Aarav Deshmukh',
-    clinic: 'Smile Studio Dental Care, Nagpur',
-    issued: '19 Aug 26',
-    issuedYear: '2026',
-    validThru: '08 / 31',
-    validYears: 5,
-    issuedTimestamp: Date.UTC(2026, 7, 19),
-    expiryTimestamp: Date.UTC(2031, 7, 19)
-  },
-  'CER-8942': {
-    material: 'Ceramic Crown',
-    materialFull: 'Ceramic-hybrid crown',
-    tooth: '19 (Molar)',
-    shade: 'B1',
-    caseRef: 'JOB-1088',
-    dentist: 'Dr Sarah Jenkins',
-    clinic: 'Apex Dental Care, Mumbai',
-    issued: '15 Oct 26',
-    issuedYear: '2026',
-    validThru: '10 / 31',
-    validYears: 5,
-    issuedTimestamp: Date.UTC(2026, 9, 15),
-    expiryTimestamp: Date.UTC(2031, 9, 15)
-  },
-  'EMX-1001': {
-    material: 'E.max Crown',
-    materialFull: 'E.max lithium disilicate crown',
-    tooth: '8 (Central Incisor)',
-    shade: 'BL2',
-    caseRef: 'JOB-1102',
-    dentist: 'Dr Arthur Miller',
-    clinic: 'Prime Aesthetics Lab, Delhi',
-    issued: '01 Oct 26',
-    issuedYear: '2026',
-    validThru: '10 / 31',
-    validYears: 5,
-    issuedTimestamp: Date.UTC(2026, 9, 1),
-    expiryTimestamp: Date.UTC(2031, 9, 1)
-  },
-  'CER-1001': {
-    material: 'Ceramic Crown',
-    materialFull: 'Ceramic-hybrid crown',
-    tooth: '14 (Premolar)',
-    shade: 'A1',
-    caseRef: 'JOB-1090',
-    dentist: 'Dr Lisa Ray',
-    clinic: 'Summit Dental Group, Bangalore',
-    issued: '12 Aug 26',
-    issuedYear: '2026',
-    validThru: '08 / 31',
-    validYears: 5,
-    issuedTimestamp: Date.UTC(2026, 7, 12),
-    expiryTimestamp: Date.UTC(2031, 7, 12)
-  }
-};
+  const CFG = window.HESYRA_CONFIG || {};
+  const API_URL = CFG.apiUrl || '';
+  const TIMEOUT_MS = CFG.requestTimeoutMs || 20000;
+  const SESSION_KEY = 'hesyra_warranty_session_v2';
+  const SESSION_TTL_MS = (CFG.sessionMinutes || 30) * 60 * 1000;
+  const CONSENT_VERSION = 'v1.0';
+  const ID_RE = /^[A-Z]{3}-\d{4}$/;
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const MSG = {
+    NETWORK: 'We couldn’t reach the warranty registry. Check your internet connection and try again.',
+    TIMEOUT: 'The warranty registry is taking too long to respond. Please try again.',
+    CONFIG: 'The warranty service is not configured. Please contact Hesyra Labs.',
+    GENERIC: 'Something went wrong. Please try again.'
+  };
 
-// 2. DOM Elements
-const bodyEl = document.body;
-const formContainer = document.getElementById('form-container');
-const cardStageContainer = document.getElementById('card-stage-container');
-const warrantyForm = document.getElementById('warranty-form');
+  const $ = (id) => document.getElementById(id);
+  const el = {
+    page: $('page'),
+    cardView: $('card-view-section'),
+    formView: $('form-view-section'),
+    stage: $('stage'),
+    card: $('card'),
+    flipper: $('flipper'),
+    flipHint: $('flip-hint'),
+    cardProduct: $('card-product'),
+    cardMeta: $('card-meta'),
+    cardPatient: $('card-patient'),
+    cardWarrantyId: $('card-warranty-id'),
+    cardValidThru: $('card-valid-thru'),
+    backTooth: $('back-tooth'),
+    backShade: $('back-shade'),
+    backCase: $('back-case'),
+    backDentist: $('back-dentist'),
+    backIssued: $('back-issued'),
+    statusDot: $('status-dot'),
+    statusLabel: $('status-label'),
+    statusTag: $('status-tag'),
+    progressBar: $('progress-bar'),
+    dashRestoration: $('dash-restoration'),
+    dashClinic: $('dash-clinic'),
+    dashWarrantyId: $('dash-warranty-id'),
+    dashIssued: $('dash-issued-date'),
+    dashUntil: $('dash-until-date'),
+    downloadPdf: $('download-pdf-btn'),
+    signOut: $('sign-out-btn'),
+    tabRegister: $('tab-register-btn'),
+    tabLogin: $('tab-login-btn'),
+    panelRegister: $('panel-register'),
+    panelLogin: $('panel-login'),
+    heading: $('portal-heading'),
+    subhead: $('portal-subhead'),
+    registerForm: $('warranty-form'),
+    crownId: $('crown-id-input'),
+    crownValidIcon: $('crown-valid-icon'),
+    idHint: $('id-hint'),
+    retry: $('lookup-retry-btn'),
+    matchBox: $('match-box'),
+    matchTitle: $('form-match-title'),
+    matchClinic: $('form-match-clinic'),
+    matchFitted: $('form-match-fitted'),
+    step1Num: $('step1-num'),
+    step1Check: $('step1-check'),
+    stepConnector: $('step-connector'),
+    step2Indicator: $('step2-indicator'),
+    step2Section: $('step2-section'),
+    name: $('input-name'),
+    phone: $('input-phone'),
+    email: $('input-email'),
+    phoneHelper: $('phone-smart-helper'),
+    phoneAuthTag: $('phone-auth-tag'),
+    phoneHelperText: $('phone-helper-text'),
+    nameErr: $('name-err'),
+    phoneErr: $('phone-err'),
+    emailErr: $('email-err'),
+    registerError: $('register-error-box'),
+    submit: $('submit-btn'),
+    submitSpinner: $('submit-spinner'),
+    submitText: $('submit-text'),
+    locationHint: $('location-hint'),
+    loginForm: $('login-form'),
+    loginId: $('login-crown-id-input'),
+    loginPhone: $('login-phone-input'),
+    loginMasked: $('login-masked-hint'),
+    loginError: $('login-error-box'),
+    loginErrorText: $('login-error-text'),
+    loginIdErr: $('login-id-err'),
+    loginPhoneErr: $('login-phone-err'),
+    loginSubmit: $('login-submit-btn'),
+    loginSpinner: $('login-spinner'),
+    loginBtnText: $('login-btn-text'),
+    switchToRegister: $('switch-to-register-link'),
+    termsModal: $('terms-modal'),
+    openTerms: $('open-terms'),
+    closeTerms: $('close-terms'),
+    viewTerms: $('view-terms-link'),
+    viewPrivacy: $('view-privacy-link'),
+    modalTabTerms: $('modal-tab-terms'),
+    modalTabPrivacy: $('modal-tab-privacy'),
+    modalTerms: $('modal-content-terms'),
+    modalPrivacy: $('modal-content-privacy')
+  };
 
-// Stepper Elements
-const step1Num = document.getElementById('step1-num');
-const step1Check = document.getElementById('step1-check');
-const step2Node = document.getElementById('step2-node');
-const step2Wrapper = document.getElementById('step2-wrapper');
+  const state = {
+    currentCrown: null,
+    lookupSeq: 0,
+    lookupTimer: null,
+    lastLookupId: '',
+    registering: false,
+    loggingIn: false,
+    locationPromise: null,
+    flipped: false,
+    lastFocus: null
+  };
 
-const crownIdInput = document.getElementById('crown-id-input');
-const idValidBadge = document.getElementById('id-valid-badge');
-const idHintText = document.getElementById('id-hint-text');
-const sampleBtn = document.getElementById('sample-btn');
+  const show = (node) => node && node.classList.remove('hidden');
+  const hide = (node) => node && node.classList.add('hidden');
 
-const crownMatchCard = document.getElementById('crown-match-card');
-const matchMaterialTitle = document.getElementById('match-material-title');
-const matchClinicLine = document.getElementById('match-clinic-line');
-const matchFittedLine = document.getElementById('match-fitted-line');
-
-const patientNameInput = document.getElementById('patient-name-input');
-const patientPhoneInput = document.getElementById('patient-phone-input');
-const patientEmailInput = document.getElementById('patient-email-input');
-const consentCheckbox = document.getElementById('consent-checkbox');
-const consentWrap = document.getElementById('consent-wrap');
-const consentBox = document.getElementById('consent-box');
-
-const nameError = document.getElementById('name-error');
-const phoneError = document.getElementById('phone-error');
-const consentError = document.getElementById('consent-error');
-
-const submitBtn = document.getElementById('submit-warranty-btn');
-const btnSpinner = document.getElementById('btn-spinner');
-const btnLabelText = document.getElementById('btn-label-text');
-
-// GSheet Elements
-const gsheetEndpointInput = document.getElementById('gsheet-endpoint-input');
-const gsheetStatusPill = document.getElementById('gsheet-status-pill');
-
-// 3D Card Elements
-const cardStage = document.getElementById('card-stage');
-const card3D = document.getElementById('card-3d');
-const cardFlipper = document.getElementById('card-flipper');
-const flipHintText = document.getElementById('flip-hint-text');
-
-const cardProductTitle = document.getElementById('card-product-title');
-const cardProductMeta = document.getElementById('card-product-meta');
-const cardPatientDisplay = document.getElementById('card-patient-display');
-const cardIdDisplay = document.getElementById('card-id-display');
-const cardExpiryDisplay = document.getElementById('card-expiry-display');
-
-const backToothVal = document.getElementById('back-tooth-val');
-const backShadeVal = document.getElementById('back-shade-val');
-const backCaseVal = document.getElementById('back-case-val');
-const backDentistVal = document.getElementById('back-dentist-val');
-const backIssuedVal = document.getElementById('back-issued-val');
-
-// Dashboard Elements
-const warrantyProgressBar = document.getElementById('warranty-progress-bar');
-const progressStartDate = document.getElementById('progress-start-date');
-const progressEndDate = document.getElementById('progress-end-date');
-const dashMaterialFull = document.getElementById('dash-material-full');
-const dashClinicFull = document.getElementById('dash-clinic-full');
-const dashWarrantyId = document.getElementById('dash-warranty-id');
-
-const downloadPdfBtn = document.getElementById('download-pdf-btn');
-const restartFlowBtn = document.getElementById('restart-flow-btn');
-
-// Terms Modal Elements
-const openTermsBtn = document.getElementById('open-terms-btn');
-const closeTermsBtn = document.getElementById('close-terms-btn');
-const termsModal = document.getElementById('terms-modal');
-
-// State
-let currentCase = null;
-let isFlipped = false;
-let isVerifying = false;
-let hasTriedSubmit = false;
-let preferredSample = 'ZIR-4510';
-
-// 3D Physics State
-const motionState = {
-  x: 0.5,
-  y: 0.3,
-  tx: 0.5,
-  ty: 0.3,
-  last: 0,
-  rafId: null,
-  reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-};
-
-// ========================================================
-// INITIALIZATION & URL ROUTING
-// ========================================================
-function init() {
-  const params = new URLSearchParams(window.location.search);
-  const typeParam = (params.get('type') || '').toLowerCase();
-  const idParam = params.get('id');
-
-  // Handle Ceramic vs Zirconia QR code packaging targets
-  if (typeParam === 'ceramic' || typeParam === 'cer') {
-    preferredSample = 'CER-8942';
-    sampleBtn.textContent = 'Try Ceramic sample';
-  } else if (typeParam === 'emax') {
-    preferredSample = 'EMX-1001';
-    sampleBtn.textContent = 'Try E.max sample';
-  } else {
-    preferredSample = 'ZIR-4510';
-    sampleBtn.textContent = 'Try Zirconia sample';
+  // ==========================================================================
+  // Formatting helpers
+  // ==========================================================================
+  function digits(v) {
+    return String(v || '').replace(/\D/g, '');
   }
 
-  // Restore saved GSheet URL
-  const savedGsheet = localStorage.getItem('hesyra_gsheet_url');
-  if (savedGsheet) {
-    gsheetEndpointInput.value = savedGsheet;
-    gsheetStatusPill.textContent = 'Live GSheet';
+  function formatCrownId(raw) {
+    let v = String(raw || '');
+    const fromUrl = v.match(/[?&]id=([^&#\s]+)/i);
+    if (fromUrl) v = decodeURIComponent(fromUrl[1]);
+    v = v.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (v.length > 3) v = v.slice(0, 3) + '-' + v.slice(3, 7);
+    return v.slice(0, 8);
   }
 
-  // Auto-fill ID if passed in QR URL
-  if (idParam) {
-    crownIdInput.value = formatIdString(idParam);
-    validateCrownId();
+  function parseIso(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+    return m ? { y: +m[1], m: +m[2], d: +m[3] } : null;
   }
 
-  setupEventListeners();
-  setup3DMotionPhysics();
-}
-
-// Format string as XXX-NNNN
-function formatIdString(val) {
-  let cleaned = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (cleaned.length > 3) {
-    cleaned = cleaned.slice(0, 3) + '-' + cleaned.slice(3, 7);
+  function fmtLong(iso) {
+    const p = parseIso(iso);
+    return p ? `${p.d} ${MONTHS[p.m - 1]} ${p.y}` : '';
   }
-  return cleaned.slice(0, 8);
-}
 
-// ========================================================
-// EVENT LISTENERS
-// ========================================================
-function setupEventListeners() {
-  // 1. Crown ID Input Formatter & Validator
-  crownIdInput.addEventListener('input', (e) => {
-    e.target.value = formatIdString(e.target.value);
-    validateCrownId();
+  function fmtShort(iso) {
+    const p = parseIso(iso);
+    return p ? `${String(p.d).padStart(2, '0')} ${MONTHS[p.m - 1]} ${String(p.y).slice(-2)}` : '';
+  }
+
+  function fmtValidThru(iso) {
+    const p = parseIso(iso);
+    return p ? `${String(p.m).padStart(2, '0')} / ${String(p.y).slice(-2)}` : '—';
+  }
+
+  function todayIso() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+
+  function isoToUtc(iso) {
+    const p = parseIso(iso);
+    return p ? Date.UTC(p.y, p.m - 1, p.d) : NaN;
+  }
+
+  // ==========================================================================
+  // API client
+  // ==========================================================================
+  function inferCode(res) {
+    if (res.code) return res.code;
+    if (res.alreadyRegistered) return 'ALREADY_REGISTERED';
+    if (res.needsRegistration) return 'NOT_REGISTERED';
+    if (res.verified === false) return 'WRONG_PHONE';
+    return res.success ? '' : 'ERROR';
+  }
+
+  async function callApi(method, params) {
+    if (!API_URL) return { success: false, code: 'CONFIG', error: MSG.CONFIG };
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      let res;
+      if (method === 'GET') {
+        const sep = API_URL.includes('?') ? '&' : '?';
+        res = await fetch(API_URL + sep + new URLSearchParams(params).toString(), {
+          signal: controller.signal, cache: 'no-store', credentials: 'omit'
+        });
+      } else {
+        // text/plain keeps this a "simple" request: no CORS preflight, which Apps Script can't answer.
+        res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(params),
+          signal: controller.signal,
+          cache: 'no-store',
+          credentials: 'omit',
+          redirect: 'follow'
+        });
+      }
+      if (!res.ok) return { success: false, code: 'NETWORK', error: MSG.NETWORK };
+      const text = await res.text();
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (e) {
+        return { success: false, code: 'NETWORK', error: MSG.NETWORK };
+      }
+      if (!json || typeof json !== 'object') return { success: false, code: 'NETWORK', error: MSG.NETWORK };
+      json.code = inferCode(json);
+      if (!json.success && !json.error) json.error = MSG.GENERIC;
+      return json;
+    } catch (err) {
+      const timedOut = err && err.name === 'AbortError';
+      return { success: false, code: timedOut ? 'TIMEOUT' : 'NETWORK', error: timedOut ? MSG.TIMEOUT : MSG.NETWORK };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  const api = {
+    lookup: (id) => callApi('GET', { action: 'lookup', id }),
+    register: (payload) => callApi('POST', Object.assign({ action: 'register' }, payload)),
+    verifyLogin: (id, phone) => callApi('POST', { action: 'verify_login', id, phone })
+  };
+
+  async function fetchJson(url, ms) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    try {
+      const res = await fetch(url, { signal: controller.signal, credentials: 'omit', cache: 'no-store' });
+      return res.ok ? await res.json() : null;
+    } catch (e) {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Approximate location for the audit trail. Never blocks registration.
+  async function lookupLocation() {
+    const unknown = { city: 'Unknown', region: 'Unknown', country: 'Unknown', ip: 'Unknown' };
+    if (CFG.geoLookup === false) return unknown;
+    const a = await fetchJson('https://ipapi.co/json/', 2500);
+    if (a && a.ip && !a.error) {
+      return { city: a.city || 'Unknown', region: a.region || 'Unknown', country: a.country_name || 'Unknown', ip: a.ip };
+    }
+    const b = await fetchJson('https://ipwho.is/', 2500);
+    if (b && b.ip && b.success !== false) {
+      return { city: b.city || 'Unknown', region: b.region || 'Unknown', country: b.country || 'Unknown', ip: b.ip };
+    }
+    return unknown;
+  }
+
+  function prefetchLocation() {
+    if (!state.locationPromise) state.locationPromise = lookupLocation();
+    return state.locationPromise;
+  }
+
+  function withDeadline(promise, ms, fallback) {
+    return Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve(fallback), ms))]);
+  }
+
+  // ==========================================================================
+  // Session (per tab, no phone numbers stored)
+  // ==========================================================================
+  function saveSession(crown) {
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ crown, savedAt: Date.now() }));
+    } catch (e) { /* private mode: card simply won't survive a reload */ }
+  }
+
+  function loadSession() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (!s || !s.crown || !s.crown.crownId || Date.now() - s.savedAt > SESSION_TTL_MS) {
+        sessionStorage.removeItem(SESSION_KEY);
+        return null;
+      }
+      return s.crown;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function clearSession() {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* ignore */ }
+  }
+
+  // ==========================================================================
+  // Portal tabs
+  // ==========================================================================
+  function setPortalMode(mode) {
+    const login = mode === 'login';
+    el.tabLogin.style.background = login ? '#052659' : 'transparent';
+    el.tabLogin.style.color = login ? '#F2FAFF' : '#5483B3';
+    el.tabRegister.style.background = login ? 'transparent' : '#052659';
+    el.tabRegister.style.color = login ? '#5483B3' : '#F2FAFF';
+    el.tabLogin.setAttribute('aria-selected', String(login));
+    el.tabRegister.setAttribute('aria-selected', String(!login));
+    (login ? hide : show)(el.panelRegister);
+    (login ? show : hide)(el.panelLogin);
+    el.heading.textContent = login ? 'Patient Check-In' : 'Register Your Crown';
+    el.subhead.textContent = login
+      ? 'Enter your Crown ID and registered mobile number to access your card.'
+      : 'Enter the ID on your box to activate your digital warranty.';
+  }
+
+  // ==========================================================================
+  // Step 1: Crown ID lookup
+  // ==========================================================================
+  function setHint(text, tone) {
+    const colors = { info: '#6b84a0', busy: '#5483B3', ok: '#16a34a', error: '#c0392b' };
+    el.idHint.textContent = text;
+    el.idHint.style.color = colors[tone] || colors.info;
+  }
+
+  function resetStep1() {
+    hide(el.crownValidIcon);
+    show(el.step1Num);
+    hide(el.step1Check);
+    hide(el.matchBox);
+    hide(el.stepConnector);
+    hide(el.step2Indicator);
+    hide(el.step2Section);
+    hide(el.retry);
+    hide(el.registerError);
+    el.loginMasked.textContent = '';
+    el.crownId.removeAttribute('aria-invalid');
+  }
+
+  function onCrownIdInput(e) {
+    const v = formatCrownId(e.target.value);
+    el.crownId.value = v;
+    el.loginId.value = v;
+    hide(el.loginIdErr);
+    clearTimeout(state.lookupTimer);
+    if (!ID_RE.test(v)) {
+      resolveCrown(v, true); // incomplete: reset the form right away, no network call
+      return;
+    }
+    if (v === state.lastLookupId) return;
+    state.lookupTimer = setTimeout(() => resolveCrown(v, true), 250);
+  }
+
+  async function resolveCrown(id, autoFocus) {
+    const seq = ++state.lookupSeq;
+    resetStep1();
+    state.lastLookupId = '';
+
+    if (!ID_RE.test(id)) {
+      if (id.length >= 8 || (id.length >= 4 && !/^[A-Z]{3}/.test(id))) {
+        setHint('Crown IDs look like ZIR-4510 — three letters, then four numbers.', 'error');
+        el.crownId.setAttribute('aria-invalid', 'true');
+      } else {
+        setHint('Printed on the packaging label of your crown.', 'info');
+      }
+      return;
+    }
+
+    setHint('Checking laboratory registry…', 'busy');
+    const res = await api.lookup(id);
+    if (seq !== state.lookupSeq) return; // a newer lookup has started
+    state.lastLookupId = id;
+
+    if (res.success && res.isRegistered) {
+      setPortalMode('login');
+      el.loginId.value = id;
+      el.loginMasked.textContent = res.maskedPhone ? `Registered ${res.maskedPhone}` : '';
+      hide(el.loginError);
+      setHint('Crown found.', 'ok');
+      if (autoFocus) el.loginPhone.focus();
+      return;
+    }
+
+    if (res.success && res.crown) {
+      setPortalMode('register');
+      showMatch(res.crown);
+      prefetchLocation();
+      if (autoFocus) el.name.focus();
+      return;
+    }
+
+    state.lastLookupId = '';
+    if (res.code === 'NETWORK' || res.code === 'TIMEOUT' || res.code === 'SERVER_ERROR' || res.code === 'BUSY') {
+      show(el.retry);
+    } else {
+      el.crownId.setAttribute('aria-invalid', 'true');
+    }
+    setHint(res.error || MSG.GENERIC, 'error');
+  }
+
+  function showMatch(c) {
+    show(el.crownValidIcon);
+    hide(el.step1Num);
+    show(el.step1Check);
+    setHint('Crown verified in laboratory registry.', 'ok');
+
+    el.matchTitle.textContent = c.materialFull || c.product || 'Dental crown';
+    const clinicLine = [c.clinic, c.dentist].filter(Boolean).join(' · ');
+    el.matchClinic.textContent = clinicLine;
+    (clinicLine ? show : hide)(el.matchClinic);
+    el.matchFitted.textContent = [
+      c.dispatchDate ? `Dispatched ${fmtLong(c.dispatchDate)}` : '',
+      c.tooth ? `Teeth ${c.tooth}` : ''
+    ].filter(Boolean).join(' · ');
+    show(el.matchBox);
+    show(el.stepConnector);
+    show(el.step2Indicator);
+    show(el.step2Section);
+  }
+
+  // ==========================================================================
+  // Step 2: registration
+  // ==========================================================================
+  function updatePhoneHint() {
+    const phoneDigits = digits(el.phone.value);
+    if (el.name.value.trim().length >= 2 || document.activeElement === el.phone || phoneDigits) {
+      show(el.phoneHelper);
+      show(el.phoneAuthTag);
+    } else {
+      hide(el.phoneHelper);
+      hide(el.phoneAuthTag);
+    }
+    const tone = phoneDigits.length >= 10 ? 'ok' : phoneDigits.length > 0 ? 'warn' : 'info';
+    const styles = {
+      ok: ['#F0FDF4', '#BBF7D0', '#166534', 'Phone linked: ready for secure check-in.'],
+      warn: ['#FFFBEB', '#FDE68A', '#92400E', `Enter your 10-digit mobile number (${phoneDigits.length}/10 digits).`],
+      info: ['#F0F7FD', '#D0E4F5', '#3b5f8a', 'This number becomes your check-in key. You’ll need it to open your card later.']
+    }[tone];
+    el.phoneHelper.style.background = styles[0];
+    el.phoneHelper.style.borderColor = styles[1];
+    el.phoneHelper.style.color = styles[2];
+    el.phoneHelperText.textContent = styles[3];
+  }
+
+  function fieldError(input, errNode, bad) {
+    (bad ? show : hide)(errNode);
+    if (bad) input.setAttribute('aria-invalid', 'true');
+    else input.removeAttribute('aria-invalid');
+    return !bad;
+  }
+
+  function validName(name) {
+    return name.length >= 2 && name.length <= 80 && /\p{L}/u.test(name);
+  }
+
+  function validPhone(p) {
+    return p.length >= 10 && p.length <= 15;
+  }
+
+  function validEmail(email) {
+    return !email || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  }
+
+  function setRegisterBusy(busy) {
+    state.registering = busy;
+    el.submit.disabled = busy;
+    el.submit.setAttribute('aria-busy', String(busy));
+    (busy ? show : hide)(el.submitSpinner);
+    el.submitText.textContent = busy ? 'Activating your warranty…' : 'Activate Warranty & Show Card';
+    el.locationHint.textContent = busy ? 'Securing registration & activating warranty…' : 'Encrypted registration & tamper-evident verification';
+  }
+
+  async function onRegisterSubmit(e) {
+    e.preventDefault();
+    if (state.registering) return;
+    hide(el.registerError);
+
+    const crownId = formatCrownId(el.crownId.value);
+    const name = el.name.value.trim().replace(/\s+/g, ' ');
+    const phone = digits(el.phone.value);
+    const email = el.email.value.trim();
+
+    if (!ID_RE.test(crownId) || state.lastLookupId !== crownId) {
+      resolveCrown(crownId, false);
+      return;
+    }
+    const ok = [
+      fieldError(el.name, el.nameErr, !validName(name)),
+      fieldError(el.phone, el.phoneErr, !validPhone(phone)),
+      fieldError(el.email, el.emailErr, !validEmail(email))
+    ].every(Boolean);
+    if (!ok) {
+      const firstBad = [el.name, el.phone, el.email].find((i) => i.getAttribute('aria-invalid') === 'true');
+      if (firstBad) firstBad.focus();
+      return;
+    }
+
+    setRegisterBusy(true);
+    try {
+      const location = await withDeadline(prefetchLocation(), 3000, { city: 'Unknown', region: 'Unknown', country: 'Unknown', ip: 'Unknown' });
+      const res = await api.register({
+        id: crownId, patientName: name, phone, email,
+        consentAgreed: true, consentVersion: CONSENT_VERSION, location
+      });
+
+      if (res.success && res.crown) {
+        openCard(res.crown);
+        return;
+      }
+      if (res.code === 'ALREADY_REGISTERED') {
+        // Same person re-submitting (e.g. after a dropped response): just sign them in.
+        const login = await api.verifyLogin(crownId, phone);
+        if (login.success && login.crown) {
+          openCard(login.crown);
+          return;
+        }
+        setPortalMode('login');
+        el.loginId.value = crownId;
+        el.loginMasked.textContent = res.maskedPhone ? `Registered ${res.maskedPhone}` : '';
+        showLoginError('This crown is already registered' + (res.maskedPhone ? ` to a phone ${res.maskedPhone}` : '') + '. Enter that number to check in.');
+        el.loginPhone.focus();
+        return;
+      }
+      el.registerError.textContent = res.error || MSG.GENERIC;
+      show(el.registerError);
+      el.registerError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } finally {
+      setRegisterBusy(false);
+    }
+  }
+
+  // ==========================================================================
+  // Patient check-in
+  // ==========================================================================
+  function showLoginError(text) {
+    el.loginErrorText.textContent = text;
+    show(el.loginError);
+    el.loginError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function setLoginBusy(busy) {
+    state.loggingIn = busy;
+    el.loginSubmit.disabled = busy;
+    el.loginSubmit.setAttribute('aria-busy', String(busy));
+    (busy ? show : hide)(el.loginSpinner);
+    el.loginBtnText.textContent = busy ? 'Verifying…' : 'Verify Identity & View Card';
+  }
+
+  async function onLoginSubmit(e) {
+    e.preventDefault();
+    if (state.loggingIn) return;
+    hide(el.loginError);
+    const crownId = formatCrownId(el.loginId.value);
+    const phone = digits(el.loginPhone.value);
+    const ok = [
+      fieldError(el.loginId, el.loginIdErr, !ID_RE.test(crownId)),
+      fieldError(el.loginPhone, el.loginPhoneErr, !validPhone(phone))
+    ].every(Boolean);
+    if (!ok) return;
+
+    setLoginBusy(true);
+    try {
+      const res = await api.verifyLogin(crownId, phone);
+      if (res.success && res.crown) {
+        openCard(res.crown);
+        return;
+      }
+      if (res.code === 'NOT_REGISTERED') {
+        setPortalMode('register');
+        el.crownId.value = crownId;
+        resolveCrown(crownId, true);
+        return;
+      }
+      let message = res.error || MSG.GENERIC;
+      if (res.code === 'WRONG_PHONE' && typeof res.attemptsLeft === 'number' && res.attemptsLeft <= 2) {
+        message += ` ${res.attemptsLeft} attempt${res.attemptsLeft === 1 ? '' : 's'} left.`;
+      }
+      showLoginError(message);
+    } finally {
+      setLoginBusy(false);
+    }
+  }
+
+  // ==========================================================================
+  // Card view
+  // ==========================================================================
+  function renderCard(c) {
+    const product = c.product || 'Dental crown';
+    const year = parseIso(c.dispatchDate) ? String(parseIso(c.dispatchDate).y) : '';
+    el.cardProduct.textContent = product;
+    el.cardMeta.textContent = [c.tooth && `Teeth ${c.tooth}`, c.shade && `Shade ${c.shade}`, year].filter(Boolean).join(' · ');
+    el.cardPatient.textContent = (c.patient || '').toUpperCase();
+    el.cardPatient.title = c.patient || '';
+    el.cardWarrantyId.textContent = c.warrantyId || '';
+    el.cardValidThru.textContent = fmtValidThru(c.expiryDate);
+
+    el.backTooth.textContent = c.tooth || '—';
+    el.backShade.textContent = c.shade || '—';
+    el.backCase.textContent = c.caseRef || '—';
+    el.backDentist.textContent = c.dentist || '—';
+    el.backIssued.textContent = fmtShort(c.dispatchDate) || '—';
+
+    el.dashRestoration.textContent = c.materialFull || product;
+    el.dashClinic.textContent = c.clinic || '—';
+    el.dashWarrantyId.textContent = c.warrantyId || '—';
+    el.dashIssued.textContent = c.dispatchDate ? `Dispatched ${fmtLong(c.dispatchDate)}` : 'Awaiting dispatch';
+    el.dashUntil.textContent = c.expiryDate ? `Until ${fmtLong(c.expiryDate)}` : '';
+
+    const start = isoToUtc(c.dispatchDate);
+    const end = isoToUtc(c.expiryDate);
+    const today = isoToUtc(todayIso());
+    const expired = !isNaN(end) && today > end;
+    const pct = (!isNaN(start) && !isNaN(end) && end > start) ? Math.min(100, Math.max(2, ((today - start) / (end - start)) * 100)) : 0;
+    el.progressBar.style.width = pct.toFixed(1) + '%';
+    el.progressBar.setAttribute('aria-valuenow', pct.toFixed(0));
+
+    el.statusLabel.textContent = expired ? 'Warranty expired' : 'Warranty active';
+    el.statusTag.textContent = expired ? `Ended ${fmtLong(c.expiryDate)}` : 'Verified genuine';
+    el.statusDot.style.background = expired ? '#f59e0b' : '#C1E8FF';
+    el.statusDot.style.animation = expired ? 'none' : '';
+  }
+
+  function openCard(crown) {
+    state.currentCrown = crown;
+    saveSession(crown);
+    renderCard(crown);
+    showCardView();
+  }
+
+  function showCardView() {
+    hide(el.formView);
+    show(el.cardView);
+    el.page.style.background = 'linear-gradient(180deg, #C1E8FF 0%, #7DA0CA 22%, #5483B3 40%, #052659 66%, #021024 100%)';
+    setFlipped(false);
+    motion.start();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showFormView() {
+    hide(el.cardView);
+    show(el.formView);
+    motion.stop();
+    el.page.style.background = 'linear-gradient(180deg, #F5FAFE 0%, #E6F1FB 45%, #D2E4F5 100%)';
+  }
+
+  function signOut() {
+    clearSession();
+    state.currentCrown = null;
+    state.lastLookupId = '';
+    state.locationPromise = null;
+    [el.crownId, el.loginId, el.name, el.phone, el.email, el.loginPhone].forEach((i) => { i.value = ''; i.removeAttribute('aria-invalid'); });
+    [el.nameErr, el.phoneErr, el.emailErr, el.loginError, el.loginIdErr, el.loginPhoneErr, el.phoneHelper, el.phoneAuthTag].forEach(hide);
+    resetStep1();
+    setHint('Printed on the packaging label of your crown.', 'info');
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('id');
+      url.searchParams.delete('view');
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+    } catch (e) { /* ignore */ }
+    setPortalMode('register');
+    showFormView();
+    window.scrollTo({ top: 0 });
+    el.crownId.focus();
+  }
+
+  function setFlipped(flipped) {
+    state.flipped = flipped;
+    el.flipper.style.transform = flipped ? 'rotateY(180deg)' : 'rotateY(0deg)';
+    el.flipHint.textContent = flipped ? 'TAP TO SEE FRONT' : 'TAP CARD FOR CASE DETAILS';
+  }
+
+  function toggleFlip() {
+    const DOE = window.DeviceOrientationEvent;
+    if (DOE && typeof DOE.requestPermission === 'function' && !state.gyroAsked) {
+      state.gyroAsked = true;
+      DOE.requestPermission().catch(() => {});
+    }
+    setFlipped(!state.flipped);
+  }
+
+  function downloadPdf() {
+    const oldTitle = document.title;
+    const id = (state.currentCrown && (state.currentCrown.warrantyId || state.currentCrown.crownId)) || 'Card';
+    document.title = 'Hesyra-Warranty-' + id.replace(/\s+/g, '-');
+    setFlipped(false);
+    window.print();
+    setTimeout(() => { document.title = oldTitle; }, 500);
+  }
+
+  // 3D tilt & reflection. Runs only while the card is on screen.
+  const motion = (function () {
+    const t = { x: 0.5, y: 0.3, tx: 0.5, ty: 0.3, last: 0, raf: 0 };
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function loop(now) {
+      if (!reduce && now - t.last > 2200) {
+        t.tx = 0.5 + Math.sin(now / 2600) * 0.32;
+        t.ty = 0.35 + Math.cos(now / 3400) * 0.22;
+      }
+      t.x += (t.tx - t.x) * 0.08;
+      t.y += (t.ty - t.y) * 0.08;
+      const k = reduce ? 0 : 1;
+      const s = el.card.style;
+      s.setProperty('--ry', ((t.x - 0.5) * 18 * k).toFixed(2) + 'deg');
+      s.setProperty('--rx', ((0.5 - t.y) * 14 * k).toFixed(2) + 'deg');
+      s.setProperty('--mx', (t.x * 100).toFixed(1) + '%');
+      s.setProperty('--my', (t.y * 100).toFixed(1) + '%');
+      s.setProperty('--gl', (0.35 + Math.hypot(t.x - 0.5, t.y - 0.5) * 0.9).toFixed(3));
+      t.raf = requestAnimationFrame(loop);
+    }
+    el.stage.addEventListener('pointermove', (e) => {
+      const r = el.stage.getBoundingClientRect();
+      t.tx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+      t.ty = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+      t.last = performance.now();
+    });
+    el.stage.addEventListener('pointerleave', () => { t.last = 0; });
+    window.addEventListener('deviceorientation', (e) => {
+      if (e.gamma == null) return;
+      t.tx = Math.min(1, Math.max(0, 0.5 + e.gamma / 50));
+      t.ty = Math.min(1, Math.max(0, 0.5 + (e.beta - 45) / 50));
+      t.last = performance.now();
+    });
+    return {
+      start() { if (!t.raf) t.raf = requestAnimationFrame(loop); },
+      stop() { if (t.raf) cancelAnimationFrame(t.raf); t.raf = 0; }
+    };
+  })();
+
+  // ==========================================================================
+  // Legal modal
+  // ==========================================================================
+  function switchPolicy(tab) {
+    const privacy = tab === 'privacy';
+    el.modalTabPrivacy.style.background = privacy ? '#C1E8FF' : 'transparent';
+    el.modalTabPrivacy.style.color = privacy ? '#021024' : '#7DA0CA';
+    el.modalTabTerms.style.background = privacy ? 'transparent' : '#C1E8FF';
+    el.modalTabTerms.style.color = privacy ? '#7DA0CA' : '#021024';
+    el.modalTabPrivacy.setAttribute('aria-pressed', String(privacy));
+    el.modalTabTerms.setAttribute('aria-pressed', String(!privacy));
+    (privacy ? show : hide)(el.modalPrivacy);
+    (privacy ? hide : show)(el.modalTerms);
+  }
+
+  function openModal(tab) {
+    state.lastFocus = document.activeElement;
+    switchPolicy(tab);
+    show(el.termsModal);
+    el.closeTerms.focus();
+  }
+
+  function closeModal() {
+    if (el.termsModal.classList.contains('hidden')) return;
+    hide(el.termsModal);
+    if (state.lastFocus && state.lastFocus.focus) state.lastFocus.focus();
+  }
+
+  // ==========================================================================
+  // Wiring
+  // ==========================================================================
+  el.tabRegister.addEventListener('click', () => setPortalMode('register'));
+  el.tabLogin.addEventListener('click', () => setPortalMode('login'));
+  el.switchToRegister.addEventListener('click', () => {
+    setPortalMode('register');
+    el.crownId.focus();
   });
 
-  // 2. Try Sample Button
-  sampleBtn.addEventListener('click', () => {
-    crownIdInput.value = preferredSample;
-    patientNameInput.value = preferredSample.startsWith('ZIR') ? 'Meera Joshi' : 'Jane Doe';
-    patientPhoneInput.value = '+91 98220 12345';
-    consentCheckbox.checked = true;
-    updateConsentUI();
-    validateCrownId();
-  });
+  el.crownId.addEventListener('input', onCrownIdInput);
+  el.loginId.addEventListener('input', onCrownIdInput);
+  el.retry.addEventListener('click', () => resolveCrown(formatCrownId(el.crownId.value), true));
 
-  // 3. Consent Checkbox Toggle
-  consentCheckbox.addEventListener('change', updateConsentUI);
+  el.name.addEventListener('input', () => { updatePhoneHint(); if (validName(el.name.value.trim())) fieldError(el.name, el.nameErr, false); });
+  el.name.addEventListener('blur', updatePhoneHint);
+  el.phone.addEventListener('focus', updatePhoneHint);
+  el.phone.addEventListener('input', () => { updatePhoneHint(); if (validPhone(digits(el.phone.value))) fieldError(el.phone, el.phoneErr, false); });
+  el.email.addEventListener('input', () => { if (validEmail(el.email.value.trim())) fieldError(el.email, el.emailErr, false); });
+  el.loginPhone.addEventListener('input', () => { hide(el.loginError); if (validPhone(digits(el.loginPhone.value))) fieldError(el.loginPhone, el.loginPhoneErr, false); });
 
-  // 4. Form Submit
-  warrantyForm.addEventListener('submit', handleFormSubmit);
+  el.registerForm.addEventListener('submit', onRegisterSubmit);
+  el.loginForm.addEventListener('submit', onLoginSubmit);
 
-  // 5. 3D Card Flip on Click / Tap
-  cardStage.addEventListener('click', (e) => {
-    // If terms button was clicked inside dashboard, do not flip
-    if (e.target.closest('#open-terms-btn')) return;
-    flipCard();
-  });
-
-  cardStage.addEventListener('keydown', (e) => {
+  el.stage.addEventListener('click', toggleFlip);
+  el.stage.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      flipCard();
+      toggleFlip();
     }
   });
+  el.downloadPdf.addEventListener('click', downloadPdf);
+  el.signOut.addEventListener('click', signOut);
 
-  // 6. Download / Print PDF
-  downloadPdfBtn.addEventListener('click', handleDownloadPdf);
+  el.modalTabTerms.addEventListener('click', () => switchPolicy('terms'));
+  el.modalTabPrivacy.addEventListener('click', () => switchPolicy('privacy'));
+  el.openTerms.addEventListener('click', (e) => { e.stopPropagation(); openModal('terms'); });
+  el.viewTerms.addEventListener('click', (e) => { e.preventDefault(); openModal('terms'); });
+  el.viewPrivacy.addEventListener('click', (e) => { e.preventDefault(); openModal('privacy'); });
+  el.closeTerms.addEventListener('click', closeModal);
+  el.termsModal.addEventListener('click', (e) => { if (e.target === el.termsModal) closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
-  // 7. Restart Flow
-  restartFlowBtn.addEventListener('click', resetForm);
+  // ==========================================================================
+  // Boot
+  // ==========================================================================
+  (function boot() {
+    const params = new URLSearchParams(window.location.search);
+    const idParam = formatCrownId(params.get('id') || '');
+    const session = loadSession();
 
-  // 8. Terms Modal
-  openTermsBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    termsModal.classList.remove('hidden');
-  });
-
-  closeTermsBtn.addEventListener('click', () => {
-    termsModal.classList.add('hidden');
-  });
-
-  termsModal.addEventListener('click', (e) => {
-    if (e.target === termsModal) {
-      termsModal.classList.add('hidden');
+    if (session && (!idParam || idParam === session.crownId)) {
+      openCard(session);
+      return;
     }
-  });
-
-  // 9. GSheet URL config
-  gsheetEndpointInput.addEventListener('change', (e) => {
-    const url = e.target.value.trim();
-    if (url) {
-      localStorage.setItem('hesyra_gsheet_url', url);
-      gsheetStatusPill.textContent = 'Live GSheet';
-    } else {
-      localStorage.removeItem('hesyra_gsheet_url');
-      gsheetStatusPill.textContent = 'Active (Local)';
+    showFormView();
+    setPortalMode('register');
+    if (idParam) {
+      el.crownId.value = idParam;
+      el.loginId.value = idParam;
+      resolveCrown(idParam, false);
     }
-  });
-}
-
-function updateConsentUI() {
-  if (consentCheckbox.checked) {
-    consentBox.classList.add('checked');
-    consentWrap.classList.remove('error');
-    consentError.classList.add('hidden');
-  } else {
-    consentBox.classList.remove('checked');
-  }
-}
-
-// ========================================================
-// STEP 1 VALIDATION & CROWN LOOKUP
-// ========================================================
-async function validateCrownId() {
-  const val = crownIdInput.value.trim().toUpperCase();
-  const isValidFormat = /^[A-Z]{3}-\d{4}$/.test(val);
-
-  if (isValidFormat) {
-    // Look up data in local dictionary or GSheet
-    currentCase = await resolveCrownData(val);
-
-    // Update UI Step 1 to valid state
-    crownIdInput.classList.remove('error');
-    crownIdInput.classList.add('valid');
-    idValidBadge.classList.remove('hidden');
-    step1Num.classList.add('hidden');
-    step1Check.classList.remove('hidden');
-
-    // Update Hint
-    idHintText.textContent = 'Crown found. Check the details below.';
-    idHintText.className = 'input-hint success';
-
-    // Show Match Preview Card
-    matchMaterialTitle.textContent = currentCase.materialFull;
-    matchClinicLine.textContent = currentCase.clinic.includes('·') ? currentCase.clinic : `${currentCase.clinic} · ${currentCase.dentist}`;
-    matchFittedLine.textContent = `Fitted ${currentCase.issued} · Teeth ${currentCase.tooth}`;
-    crownMatchCard.classList.remove('hidden');
-
-    // Unlock Step 2
-    step2Wrapper.classList.remove('locked');
-    step2Node.classList.remove('inactive');
-    step2Node.classList.add('active-unlocked');
-
-  } else {
-    // Reset to invalid/incomplete state
-    currentCase = null;
-    crownIdInput.classList.remove('valid');
-    idValidBadge.classList.add('hidden');
-    step1Num.classList.remove('hidden');
-    step1Check.classList.add('hidden');
-    crownMatchCard.classList.add('hidden');
-
-    // Lock Step 2
-    step2Wrapper.classList.add('locked');
-    step2Node.classList.add('inactive');
-    step2Node.classList.remove('active-unlocked');
-
-    if (val.length >= 8) {
-      crownIdInput.classList.add('error');
-      idHintText.textContent = 'We couldn’t read that ID. It looks like ZIR-4510 or CER-8942.';
-      idHintText.className = 'input-hint error';
-    } else {
-      crownIdInput.classList.remove('error');
-      idHintText.textContent = 'Printed on the label of your crown box.';
-      idHintText.className = 'input-hint';
-    }
-  }
-}
-
-// Resolve Crown Data (Google Sheet or Local fallback)
-async function resolveCrownData(id) {
-  const gsheetUrl = gsheetEndpointInput.value.trim();
-
-  // Try fetching from Google Apps Script Web App if configured
-  if (gsheetUrl) {
-    try {
-      const res = await fetch(`${gsheetUrl}?action=lookup&id=${encodeURIComponent(id)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && !data.error && data.patientName) {
-          return {
-            material: data.material || 'Permanent Crown',
-            materialFull: data.tier || `${data.material} crown`,
-            tooth: data.tooth || 'Standard',
-            shade: 'A2',
-            caseRef: data.serial || `JOB-${id}`,
-            dentist: data.doctor || 'Attending Dentist',
-            clinic: data.clinic || 'Smile Studio Dental Care',
-            issued: data.issueDate || '19 Aug 26',
-            issuedYear: '2026',
-            validThru: '08 / 31',
-            validYears: 5,
-            issuedTimestamp: Date.now(),
-            expiryTimestamp: Date.now() + 5 * 365 * 24 * 3600 * 1000
-          };
-        }
-      }
-    } catch (e) {
-      console.warn('GSheet API lookup failed, falling back to local DB:', e);
-    }
-  }
-
-  // Check Local Mock Dictionary
-  if (CROWN_DB[id]) {
-    return CROWN_DB[id];
-  }
-
-  // Dynamic Generator for any standard valid ID prefix
-  const prefix = id.slice(0, 3);
-  let material = 'Permanent Crown';
-  let materialFull = 'Permanent crown';
-
-  if (prefix === 'ZIR') {
-    material = 'Zirconia Crown';
-    materialFull = 'Zirconia crown · multi-layer';
-  } else if (prefix === 'CER') {
-    material = 'Ceramic Crown';
-    materialFull = 'Ceramic-hybrid crown';
-  } else if (prefix === 'EMX') {
-    material = 'E.max Crown';
-    materialFull = 'E.max lithium disilicate crown';
-  }
-
-  return {
-    material,
-    materialFull,
-    tooth: '16, 17',
-    shade: 'A2',
-    caseRef: `JOB-${id.replace('-', '')}`,
-    dentist: 'Dr Aarav Deshmukh',
-    clinic: 'Smile Studio Dental Care, Nagpur',
-    issued: '19 Aug 26',
-    issuedYear: '2026',
-    validThru: '08 / 31',
-    validYears: 5,
-    issuedTimestamp: Date.UTC(2026, 7, 19),
-    expiryTimestamp: Date.UTC(2031, 7, 19)
-  };
-}
-
-// ========================================================
-// STEP 2 SUBMISSION & LEAD LOGGING
-// ========================================================
-async function handleFormSubmit(e) {
-  e.preventDefault();
-  hasTriedSubmit = true;
-
-  const nameVal = patientNameInput.value.trim();
-  const phoneClean = patientPhoneInput.value.replace(/\D/g, '');
-  const emailVal = patientEmailInput.value.trim();
-  const isConsent = consentCheckbox.checked;
-
-  let isValid = true;
-
-  if (nameVal.length < 2) {
-    patientNameInput.classList.add('error');
-    nameError.classList.remove('hidden');
-    isValid = false;
-  } else {
-    patientNameInput.classList.remove('error');
-    nameError.classList.add('hidden');
-  }
-
-  if (phoneClean.length < 8) {
-    patientPhoneInput.classList.add('error');
-    phoneError.classList.remove('hidden');
-    isValid = false;
-  } else {
-    patientPhoneInput.classList.remove('error');
-    phoneError.classList.add('hidden');
-  }
-
-  if (!isConsent) {
-    consentWrap.classList.add('error');
-    consentError.classList.remove('hidden');
-    isValid = false;
-  } else {
-    consentWrap.classList.remove('error');
-    consentError.classList.add('hidden');
-  }
-
-  if (!isValid || isVerifying || !currentCase) return;
-
-  isVerifying = true;
-  submitBtn.disabled = true;
-  btnSpinner.classList.remove('hidden');
-  btnLabelText.textContent = 'Creating your card…';
-
-  // Save Lead for Marketing Retargeting
-  const leadPayload = {
-    patientId: crownIdInput.value.trim().toUpperCase(),
-    patientName: nameVal,
-    patientPhone: patientPhoneInput.value.trim(),
-    patientEmail: emailVal,
-    crownMaterial: currentCase.materialFull,
-    dentist: currentCase.dentist,
-    clinic: currentCase.clinic,
-    timestamp: new Date().toISOString()
-  };
-
-  // Local storage retention
-  const savedLeads = JSON.parse(localStorage.getItem('hesyra_patient_leads') || '[]');
-  savedLeads.push(leadPayload);
-  localStorage.setItem('hesyra_patient_leads', JSON.stringify(savedLeads));
-
-  // Forward to Google Apps Script if URL provided
-  const gsheetUrl = gsheetEndpointInput.value.trim();
-  if (gsheetUrl) {
-    fetch(gsheetUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      mode: 'no-cors',
-      body: JSON.stringify({ action: 'capture_lead', ...leadPayload })
-    }).catch(err => console.warn('GSheet lead save error:', err));
-  }
-
-  // Populate Card and Dashboard
-  populateCardAndDashboard(nameVal);
-
-  // Transition views with smooth animation
-  setTimeout(() => {
-    isVerifying = false;
-    submitBtn.disabled = false;
-    btnSpinner.classList.add('hidden');
-    btnLabelText.textContent = 'Activate warranty';
-
-    bodyEl.setAttribute('data-step', 'card');
-    formContainer.classList.add('hidden');
-    cardStageContainer.classList.remove('hidden');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    // Reset card flip to front
-    isFlipped = false;
-    cardFlipper.classList.remove('flipped');
-    flipHintText.textContent = 'Tap card for case details';
-  }, 1200);
-}
-
-// ========================================================
-// CARD DATA BINDING
-// ========================================================
-function populateCardAndDashboard(patientName) {
-  const id = crownIdInput.value.trim().toUpperCase();
-  const c = currentCase;
-  const warrantyFormatted = 'HLW ' + id.replace('-', ' ') + ' 2608';
-
-  // Card Front
-  cardProductTitle.textContent = c.material;
-  cardProductMeta.textContent = `Teeth ${c.tooth} · Shade ${c.shade} · ${c.issuedYear}`;
-  cardPatientDisplay.textContent = patientName.toUpperCase();
-  cardIdDisplay.textContent = warrantyFormatted;
-  cardExpiryDisplay.textContent = c.validThru;
-
-  // Card Back
-  backToothVal.textContent = c.tooth;
-  backShadeVal.textContent = c.shade;
-  backCaseVal.textContent = c.caseRef;
-  backDentistVal.textContent = c.dentist;
-  backIssuedVal.textContent = c.issued;
-
-  // Dashboard Under Card
-  dashMaterialFull.textContent = c.materialFull;
-  dashClinicFull.textContent = c.clinic;
-  dashWarrantyId.textContent = warrantyFormatted;
-
-  progressStartDate.textContent = `Issued ${c.issued} ${c.issuedYear}`;
-  progressEndDate.textContent = `Until ${c.issued} ${parseInt(c.issuedYear) + c.validYears}`;
-
-  // Calculate Progress Percent
-  const startMs = c.issuedTimestamp || Date.UTC(2026, 7, 19);
-  const endMs = c.expiryTimestamp || (startMs + c.validYears * 365.25 * 24 * 3600 * 1000);
-  const nowMs = Date.now();
-  const pct = Math.min(100, Math.max(2, ((nowMs - startMs) / (endMs - startMs)) * 100));
-  warrantyProgressBar.style.width = pct.toFixed(1) + '%';
-}
-
-// ========================================================
-// 3D FLIP LOGIC
-// ========================================================
-function flipCard() {
-  // Mobile permission check for iOS Gyroscope
-  if (window.DeviceOrientationEvent && typeof window.DeviceOrientationEvent.requestPermission === 'function' && !window._gyroAsked) {
-    window._gyroAsked = true;
-    window.DeviceOrientationEvent.requestPermission().catch(() => {});
-  }
-
-  isFlipped = !isFlipped;
-  cardFlipper.classList.toggle('flipped', isFlipped);
-  flipHintText.textContent = isFlipped ? 'Tap to see front' : 'Tap card for case details';
-}
-
-// ========================================================
-// 3D MOTION PHYSICS (MOUSE & GYROSCOPE)
-// ========================================================
-function setup3DMotionPhysics() {
-  const m = motionState;
-
-  // Pointer Movement over card
-  cardStage.addEventListener('pointermove', (e) => {
-    const rect = cardStage.getBoundingClientRect();
-    m.tx = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    m.ty = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
-    m.last = performance.now();
-  });
-
-  cardStage.addEventListener('pointerleave', () => {
-    m.last = 0;
-  });
-
-  // Mobile Device Orientation
-  window.addEventListener('deviceorientation', (e) => {
-    if (e.gamma == null) return;
-    m.tx = Math.min(1, Math.max(0, 0.5 + e.gamma / 50));
-    m.ty = Math.min(1, Math.max(0, 0.5 + (e.beta - 45) / 50));
-    m.last = performance.now();
-  });
-
-  // Continuous Physics Loop
-  function loop(now) {
-    if (!m.reducedMotion && now - m.last > 2200) {
-      // Idle ambient breathing motion
-      m.tx = 0.5 + Math.sin(now / 2600) * 0.32;
-      m.ty = 0.35 + Math.cos(now / 3400) * 0.22;
-    }
-
-    // Smooth interpolation (spring dampening)
-    m.x += (m.tx - m.x) * 0.08;
-    m.y += (m.ty - m.y) * 0.08;
-
-    if (card3D) {
-      const k = m.reducedMotion ? 0 : 1;
-      card3D.style.setProperty('--ry', ((m.x - 0.5) * 18 * k).toFixed(2) + 'deg');
-      card3D.style.setProperty('--rx', ((0.5 - m.y) * 14 * k).toFixed(2) + 'deg');
-      card3D.style.setProperty('--mx', (m.x * 100).toFixed(1) + '%');
-      card3D.style.setProperty('--my', (m.y * 100).toFixed(1) + '%');
-      card3D.style.setProperty('--gl', (0.35 + Math.hypot(m.x - 0.5, m.y - 0.5) * 0.9).toFixed(3));
-    }
-
-    m.rafId = requestAnimationFrame(loop);
-  }
-
-  m.rafId = requestAnimationFrame(loop);
-}
-
-// ========================================================
-// PDF DOWNLOAD & PRINT
-// ========================================================
-function handleDownloadPdf() {
-  const oldTitle = document.title;
-  const id = crownIdInput.value.trim().toUpperCase() || 'ZIR-4510';
-  document.title = 'Hesyra-Warranty-' + id;
-
-  // Reset to front face for printing
-  isFlipped = false;
-  cardFlipper.classList.remove('flipped');
-
-  window.print();
-
-  setTimeout(() => {
-    document.title = oldTitle;
-  }, 500);
-}
-
-// ========================================================
-// RESTART FLOW
-// ========================================================
-function resetForm() {
-  bodyEl.setAttribute('data-step', 'form');
-  cardStageContainer.classList.add('hidden');
-  formContainer.classList.remove('hidden');
-
-  crownIdInput.value = '';
-  patientNameInput.value = '';
-  patientPhoneInput.value = '';
-  patientEmailInput.value = '';
-  consentCheckbox.checked = false;
-  updateConsentUI();
-  validateCrownId();
-
-  hasTriedSubmit = false;
-  isFlipped = false;
-  cardFlipper.classList.remove('flipped');
-  window.scrollTo({ top: 0 });
-}
-
-// Launch
-init();
+  })();
+})();

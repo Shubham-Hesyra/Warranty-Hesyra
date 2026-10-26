@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://ipapi.co https://ipwho.is; form-action 'none'; base-uri 'self'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
   <meta name="description" content="Official Hesyra Labs Digital Prosthesis Warranty Certificate & Verification Registry">
   <meta name="theme-color" content="#021024">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -48,9 +50,16 @@
       [data-face] { position: relative !important; inset: auto !important; width: 85.6mm !important; height: 54mm !important; transform: none !important; backface-visibility: visible !important; -webkit-backface-visibility: visible !important; border-radius: 0 !important; box-shadow: none !important; break-after: page; page-break-after: always; }
     }
     .hidden { display: none !important; }
+    input:focus-visible, button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid #5483B3; outline-offset: 2px; }
+    input[aria-invalid="true"] { border-color: #c0392b !important; }
+    button:disabled { opacity: 0.7; cursor: progress !important; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
   </style>
+  <script src="config.js" defer></script>
+  <script src="app.js" defer></script>
 </head>
 <body>
+<noscript><p style="margin: 0; padding: 16px; background: #fff3cd; color: #5c4400; font-family: sans-serif; text-align: center">Please enable JavaScript to activate or view your Hesyra Labs warranty.</p></noscript>
 
 <div id="page" data-page="1" style="min-height: 100svh; background: linear-gradient(180deg, #C1E8FF 0%, #7DA0CA 22%, #5483B3 40%, #052659 66%, #021024 100%); font-family: 'Inter', sans-serif; color: #C1E8FF; display: flex; flex-direction: column; align-items: center; padding: 28px 20px 48px; box-sizing: border-box; overflow-x: hidden; transition: background 0.5s ease">
 
@@ -64,10 +73,10 @@
   </div>
 
   <!-- VIEW 1: WARRANTY CARD & DASHBOARD (PICTURE 1 EXACT REPLICA) -->
-  <div id="card-view-section" style="width: 100%; display: flex; flex-direction: column; align-items: center">
-    
+  <div id="card-view-section" class="hidden" style="width: 100%; display: flex; flex-direction: column; align-items: center">
+
     <!-- 3D Card Stage -->
-    <div data-stage="1" id="stage" style="container-type: inline-size; width: min(100%, 400px); margin-top: 44px; perspective: 1100px; cursor: pointer; touch-action: pan-y; -webkit-tap-highlight-color: transparent; animation: hw-rise 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both">
+    <div data-stage="1" id="stage" tabindex="0" role="button" aria-label="Warranty card. Press to flip and see case details." style="container-type: inline-size; width: min(100%, 400px); margin-top: 44px; perspective: 1100px; cursor: pointer; touch-action: pan-y; -webkit-tap-highlight-color: transparent; animation: hw-rise 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both">
       <div data-card="1" id="card" style="--rx: 0deg; --ry: 0deg; --mx: 50%; --my: 30%; --gl: 0.5; position: relative; width: 100%; aspect-ratio: 85.6 / 54; transform: rotateX(var(--rx)) rotateY(var(--ry)); transform-style: preserve-3d; will-change: transform">
         <div data-flip="1" id="flipper" style="position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1); transform: rotateY(0deg)">
 
@@ -88,18 +97,18 @@
               </div>
               
               <div style="display: flex; flex-direction: column; gap: 1.4cqw">
-                <span id="card-product" style="font-family: 'Montserrat', sans-serif; font-weight: 300; font-size: 6cqw; letter-spacing: -0.02em; line-height: 1; color: #F2FAFF">Zirconia Crown</span>
-                <span id="card-meta" style="font-family: 'JetBrains Mono', monospace; font-size: 1.9cqw; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(193,232,255,0.65)">Teeth 16, 17 · Shade A2 · 2026</span>
+                <span id="card-product" style="font-family: 'Montserrat', sans-serif; font-weight: 300; font-size: 6cqw; letter-spacing: -0.02em; line-height: 1; color: #F2FAFF"></span>
+                <span id="card-meta" style="font-family: 'JetBrains Mono', monospace; font-size: 1.9cqw; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(193,232,255,0.65)"></span>
               </div>
               
               <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 4cqw">
                 <div style="display: flex; flex-direction: column; gap: 1.3cqw; min-width: 0">
-                  <span id="card-patient" style="font-family: 'Montserrat', sans-serif; font-weight: 500; font-size: 3cqw; letter-spacing: 0.18em; text-transform: uppercase; color: #E8F6FF; white-space: nowrap; text-shadow: 0 -0.1cqw 0 rgba(255,255,255,0.25), 0 0.2cqw 0.3cqw rgba(2,16,36,0.9)">MEERA JOSHI</span>
-                  <span id="card-warranty-id" style="font-family: 'JetBrains Mono', monospace; font-size: 2.2cqw; letter-spacing: 0.2em; color: rgba(193,232,255,0.7)">HLW ZIR 4510 2608</span>
+                  <span id="card-patient" style="font-family: 'Montserrat', sans-serif; font-weight: 500; font-size: 3cqw; letter-spacing: 0.18em; text-transform: uppercase; color: #E8F6FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56cqw; text-shadow: 0 -0.1cqw 0 rgba(255,255,255,0.25), 0 0.2cqw 0.3cqw rgba(2,16,36,0.9)"></span>
+                  <span id="card-warranty-id" style="font-family: 'JetBrains Mono', monospace; font-size: 2.2cqw; letter-spacing: 0.2em; color: rgba(193,232,255,0.7)"></span>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 1.3cqw; align-items: flex-end; flex: none">
                   <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.6cqw; letter-spacing: 0.26em; text-transform: uppercase; color: rgba(193,232,255,0.6)">Valid thru</span>
-                  <span id="card-valid-thru" style="font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 3cqw; letter-spacing: 0.1em; color: #E8F6FF; text-shadow: 0 0.2cqw 0.3cqw rgba(2,16,36,0.9)">08 / 31</span>
+                  <span id="card-valid-thru" style="font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 3cqw; letter-spacing: 0.1em; color: #E8F6FF; text-shadow: 0 0.2cqw 0.3cqw rgba(2,16,36,0.9)"></span>
                 </div>
               </div>
             </div>
@@ -119,23 +128,23 @@
             <div style="position: absolute; left: 6.6cqw; right: 6.6cqw; top: 23cqw; bottom: 6cqw; display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto 1fr; gap: 2.6cqw 3cqw; align-content: start">
               <div style="display: flex; flex-direction: column; gap: 0.7cqw">
                 <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.7cqw; letter-spacing: 0.2em; text-transform: uppercase; color: #7DA0CA">Tooth</span>
-                <span id="back-tooth" style="font-family: 'JetBrains Mono', monospace; font-size: 3cqw; font-weight: 500; color: #E8F6FF">16, 17</span>
+                <span id="back-tooth" style="font-family: 'JetBrains Mono', monospace; font-size: 3cqw; font-weight: 500; color: #E8F6FF"></span>
               </div>
               <div style="display: flex; flex-direction: column; gap: 0.7cqw">
                 <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.7cqw; letter-spacing: 0.2em; text-transform: uppercase; color: #7DA0CA">Shade</span>
-                <span id="back-shade" style="font-family: 'JetBrains Mono', monospace; font-size: 3cqw; font-weight: 500; color: #E8F6FF">A2</span>
+                <span id="back-shade" style="font-family: 'JetBrains Mono', monospace; font-size: 3cqw; font-weight: 500; color: #E8F6FF"></span>
               </div>
               <div style="display: flex; flex-direction: column; gap: 0.7cqw">
                 <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.7cqw; letter-spacing: 0.2em; text-transform: uppercase; color: #7DA0CA">Case</span>
-                <span id="back-case" style="font-family: 'JetBrains Mono', monospace; font-size: 3cqw; font-weight: 500; color: #E8F6FF">JOB-1042</span>
+                <span id="back-case" style="font-family: 'JetBrains Mono', monospace; font-size: 3cqw; font-weight: 500; color: #E8F6FF"></span>
               </div>
               <div style="grid-column: 1 / 3; display: flex; flex-direction: column; gap: 0.7cqw; min-width: 0">
                 <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.7cqw; letter-spacing: 0.2em; text-transform: uppercase; color: #7DA0CA">Fitted by</span>
-                <span id="back-dentist" style="font-family: 'Montserrat', sans-serif; font-size: 3cqw; font-weight: 600; color: #E8F6FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Dr Aarav Deshmukh</span>
+                <span id="back-dentist" style="font-family: 'Montserrat', sans-serif; font-size: 3cqw; font-weight: 600; color: #E8F6FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis"></span>
               </div>
               <div style="display: flex; flex-direction: column; gap: 0.7cqw">
                 <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.7cqw; letter-spacing: 0.2em; text-transform: uppercase; color: #7DA0CA">Issued</span>
-                <span id="back-issued" style="font-family: 'JetBrains Mono', monospace; font-size: 3cqw; font-weight: 500; color: #E8F6FF">19 Aug 26</span>
+                <span id="back-issued" style="font-family: 'JetBrains Mono', monospace; font-size: 3cqw; font-weight: 500; color: #E8F6FF"></span>
               </div>
               <div style="grid-column: 1 / 4; align-self: end; display: flex; justify-content: space-between; align-items: flex-end; gap: 3cqw; padding-top: 2.4cqw; border-top: 0.2cqw solid rgba(193,232,255,0.14)">
                 <span style="font-size: 1.9cqw; line-height: 1.5; color: #7DA0CA; max-width: 62%">Present this card with any warranty claim. Valid only for the restoration and patient named.</span>
@@ -160,11 +169,11 @@
       <div style="border-radius: 16px; background: rgba(2,16,36,0.55); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(193,232,255,0.12); padding: 18px; display: flex; flex-direction: column; gap: 14px">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
           <div style="display: flex; align-items: center; gap: 8px">
-            <span style="width: 7px; height: 7px; border-radius: 50%; background: #C1E8FF; animation: hw-pulse 2.2s ease-in-out infinite"></span>
-            <span style="font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 14px; color: #E8F6FF">Warranty active</span>
+            <span id="status-dot" style="width: 7px; height: 7px; border-radius: 50%; background: #C1E8FF; animation: hw-pulse 2.2s ease-in-out infinite"></span>
+            <span id="status-label" style="font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 14px; color: #E8F6FF">Warranty active</span>
           </div>
           <div style="display: flex; align-items: center; gap: 10px">
-            <span style="font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #7DA0CA">Verified genuine</span>
+            <span id="status-tag" style="font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #7DA0CA">Verified genuine</span>
             <button type="button" id="open-terms" aria-label="Warranty terms" title="Warranty terms" style="flex: none; width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(193,232,255,0.35); background: rgba(193,232,255,0.06); color: #C1E8FF; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 11v6"></path><circle cx="12" cy="7.2" r="0.6" fill="currentColor"></circle></svg>
             </button>
@@ -172,11 +181,11 @@
         </div>
         <div style="display: flex; flex-direction: column; gap: 8px">
           <div style="height: 4px; border-radius: 4px; background: rgba(193,232,255,0.12); overflow: hidden">
-            <div id="progress-bar" style="height: 100%; width: 14%; border-radius: 4px; background: linear-gradient(90deg, #5483B3, #C1E8FF)"></div>
+            <div id="progress-bar" role="progressbar" aria-label="Warranty period elapsed" aria-valuemin="0" aria-valuemax="100" style="height: 100%; width: 0%; border-radius: 4px; background: linear-gradient(90deg, #5483B3, #C1E8FF)"></div>
           </div>
           <div style="display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #7DA0CA">
-            <span id="dash-issued-date">Dispatched 19 Aug 2026</span>
-            <span id="dash-until-date" style="color: #C1E8FF">Until 19 Aug 2031</span>
+            <span id="dash-issued-date"></span>
+            <span id="dash-until-date" style="color: #C1E8FF"></span>
           </div>
         </div>
       </div>
@@ -185,15 +194,15 @@
       <div style="border-radius: 16px; background: rgba(2,16,36,0.55); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(193,232,255,0.12); padding: 6px 18px">
         <div style="display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid rgba(193,232,255,0.08)">
           <span style="font-size: 12.5px; color: #7DA0CA">Restoration</span>
-          <span id="dash-restoration" style="font-size: 12.5px; font-weight: 500; color: #E8F6FF; text-align: right">Zirconia crown · multi-layer</span>
+          <span id="dash-restoration" style="font-size: 12.5px; font-weight: 500; color: #E8F6FF; text-align: right"></span>
         </div>
         <div style="display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid rgba(193,232,255,0.08)">
           <span style="font-size: 12.5px; color: #7DA0CA">Clinic</span>
-          <span id="dash-clinic" style="font-size: 12.5px; font-weight: 500; color: #E8F6FF; text-align: right">Smile Studio Dental Care, Nagpur</span>
+          <span id="dash-clinic" style="font-size: 12.5px; font-weight: 500; color: #E8F6FF; text-align: right"></span>
         </div>
         <div style="display: flex; justify-content: space-between; gap: 16px; padding: 12px 0">
           <span style="font-size: 12.5px; color: #7DA0CA">Warranty ID</span>
-          <span id="dash-warranty-id" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #E8F6FF; text-align: right">HLW ZIR 4510 2608</span>
+          <span id="dash-warranty-id" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #E8F6FF; text-align: right"></span>
         </div>
       </div>
       
@@ -203,6 +212,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
           Download card as PDF
         </button>
+        <button type="button" id="sign-out-btn" style="background: none; border: none; padding: 6px 10px; font-family: 'Inter', sans-serif; font-size: 13px; color: #C1E8FF; text-decoration: underline; cursor: pointer">Sign out / register another crown</button>
       </div>
 
     </div>
@@ -213,17 +223,17 @@
 
     <div style="display: flex; flex-direction: column; gap: 8px">
       <h1 id="portal-heading" style="margin: 0; font-family: 'Montserrat', sans-serif; font-weight: 300; font-size: 32px; line-height: 1.1; letter-spacing: -0.025em; color: #021024; text-wrap: balance">Crown Warranty Portal</h1>
-      <p id="portal-subhead" style="margin: 0; font-size: 14.5px; line-height: 1.55; color: #3d5876; text-wrap: pretty">Activate your 5-year digital warranty or check in with your registered phone number.</p>
+      <p id="portal-subhead" style="margin: 0; font-size: 14.5px; line-height: 1.55; color: #3d5876; text-wrap: pretty">Activate your digital warranty or check in with your registered phone number.</p>
     </div>
 
     <!-- Mode Selector Tabs -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; background: rgba(5,38,89,0.08); padding: 4px; border-radius: 14px; border: 1px solid #D3E2F0">
-      <button type="button" id="tab-register-btn" style="padding: 10px 14px; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13.5px; font-weight: 600; border: none; cursor: pointer; background: #052659; color: #F2FAFF; transition: all 0.25s">Register Crown</button>
-      <button type="button" id="tab-login-btn" style="padding: 10px 14px; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13.5px; font-weight: 600; border: none; cursor: pointer; background: transparent; color: #5483B3; transition: all 0.25s">Patient Check-In</button>
+    <div role="tablist" aria-label="Warranty portal" style="display: grid; grid-template-columns: 1fr 1fr; background: rgba(5,38,89,0.08); padding: 4px; border-radius: 14px; border: 1px solid #D3E2F0">
+      <button type="button" id="tab-register-btn" role="tab" aria-selected="true" aria-controls="panel-register" style="padding: 10px 14px; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13.5px; font-weight: 600; border: none; cursor: pointer; background: #052659; color: #F2FAFF; transition: all 0.25s">Register Crown</button>
+      <button type="button" id="tab-login-btn" role="tab" aria-selected="false" aria-controls="panel-login" style="padding: 10px 14px; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13.5px; font-weight: 600; border: none; cursor: pointer; background: transparent; color: #5483B3; transition: all 0.25s">Patient Check-In</button>
     </div>
 
     <!-- PANEL 1: REGISTRATION FLOW -->
-    <div id="panel-register" style="display: flex; flex-direction: column; gap: 24px">
+    <div id="panel-register" role="tabpanel" style="display: flex; flex-direction: column; gap: 24px">
       <form id="warranty-form" novalidate style="display: grid; grid-template-columns: 28px minmax(0,1fr); column-gap: 16px">
 
         <!-- STEP 1 INDICATOR -->
@@ -241,12 +251,15 @@
             <span style="font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 15px; color: #021024">Crown ID</span>
           </div>
           <div style="position: relative">
-            <input id="crown-id-input" placeholder="ZIR-4510" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Crown ID" style="width: 100%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: #021024; background: #ffffff; border: 1px solid #D3E2F0; border-radius: 14px; padding: 15px 52px 15px 18px; outline: none; box-shadow: 0 1px 2px rgba(2,16,36,0.04), 0 8px 24px -12px rgba(5,38,89,0.18)">
+            <input id="crown-id-input" placeholder="ZIR-4510" maxlength="300" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Crown ID" style="width: 100%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: #021024; background: #ffffff; border: 1px solid #D3E2F0; border-radius: 14px; padding: 15px 52px 15px 18px; outline: none; box-shadow: 0 1px 2px rgba(2,16,36,0.04), 0 8px 24px -12px rgba(5,38,89,0.18)">
             <span id="crown-valid-icon" class="hidden" style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; border-radius: 50%; background: #052659; display: flex; align-items: center; justify-content: center; animation: hw-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) both">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#C1E8FF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
             </span>
           </div>
-          <span id="id-hint" style="font-size: 12.5px; line-height: 1.5; color: #6b84a0">Printed on the packaging label of your crown.</span>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+            <span id="id-hint" aria-live="polite" style="font-size: 12.5px; line-height: 1.5; color: #6b84a0">Printed on the packaging label of your crown.</span>
+            <button type="button" id="lookup-retry-btn" class="hidden" style="background: none; border: 1px solid #5483B3; border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 600; color: #052659; cursor: pointer">Try again</button>
+          </div>
 
           <!-- Crown Match Box -->
           <div id="match-box" class="hidden" style="display: flex; gap: 14px; align-items: center; padding: 14px; border-radius: 14px; background: linear-gradient(135deg, #052659, #021024); box-shadow: 0 16px 32px -16px rgba(2,16,36,0.6); animation: hw-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both">
@@ -254,9 +267,9 @@
               <div style="width: 26px; height: 26px; -webkit-mask: url(assets/logo.png) center / contain no-repeat; mask: url(assets/logo.png) center / contain no-repeat; background: linear-gradient(120deg, #C1E8FF, #7DA0CA 30%, #efe6ff 50%, #a6ecff 70%, #5483B3)"></div>
             </div>
             <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0">
-              <span id="form-match-title" style="font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 14.5px; color: #F2FAFF">Zirconia crown · multi-layer</span>
-              <span id="form-match-clinic" style="font-size: 12.5px; line-height: 1.45; color: #9fbcd9">Smile Studio Dental Care · Dr Aarav Deshmukh</span>
-              <span id="form-match-fitted" style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; color: #7DA0CA">Fitted 19 Aug 2026 · Teeth 16, 17</span>
+              <span id="form-match-title" style="font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 14.5px; color: #F2FAFF"></span>
+              <span id="form-match-clinic" style="font-size: 12.5px; line-height: 1.45; color: #9fbcd9"></span>
+              <span id="form-match-fitted" style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; color: #7DA0CA"></span>
             </div>
           </div>
         </div>
@@ -276,8 +289,8 @@
 
           <label style="display: flex; flex-direction: column; gap: 7px">
             <span style="font-size: 13px; font-weight: 500; color: #052659">Full Name</span>
-            <input id="input-name" placeholder="As on your clinic records" autocomplete="name" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; min-width: 0; border: 1px solid #D3E2F0">
-            <span id="name-err" class="hidden" style="font-size: 12px; color: #c0392b">Enter your full name.</span>
+            <input id="input-name" maxlength="80" aria-describedby="name-err" placeholder="As on your clinic records" autocomplete="name" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; min-width: 0; border: 1px solid #D3E2F0">
+            <span id="name-err" class="hidden" role="alert" style="font-size: 12px; color: #c0392b">Enter your full name.</span>
           </label>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px">
@@ -289,7 +302,7 @@
                   Login Key
                 </span>
               </div>
-              <input id="input-phone" type="tel" inputmode="tel" placeholder="+91 98765 43210" autocomplete="tel" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; min-width: 0; border: 1px solid #D3E2F0; transition: border-color 0.2s, box-shadow 0.2s">
+              <input id="input-phone" maxlength="20" aria-describedby="phone-err" type="tel" inputmode="tel" placeholder="+91 98765 43210" autocomplete="tel" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; min-width: 0; border: 1px solid #D3E2F0; transition: border-color 0.2s, box-shadow 0.2s">
               
               <!-- Subtle, smart mobile notice appearing contextually -->
               <div id="phone-smart-helper" class="hidden" style="display: flex; align-items: flex-start; gap: 6px; font-size: 11.5px; line-height: 1.45; color: #3b5f8a; background: #F0F7FD; border: 1px solid #D0E4F5; border-radius: 8px; padding: 7px 10px; animation: hw-fade 0.25s ease both">
@@ -297,11 +310,12 @@
                 <span id="phone-helper-text">Permanent check-in key. Strictly required to access your card later.</span>
               </div>
 
-              <span id="phone-err" class="hidden" style="font-size: 12px; color: #c0392b">Enter a valid 10-digit mobile number.</span>
+              <span id="phone-err" class="hidden" role="alert" style="font-size: 12px; color: #c0392b">Enter a valid 10-digit mobile number.</span>
             </label>
             <label style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
               <span style="font-size: 13px; font-weight: 500; color: #052659">Email <span style="font-weight: 400; color: #6b84a0">(optional)</span></span>
-              <input id="input-email" type="email" placeholder="name@example.com" autocomplete="email" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; min-width: 0; border: 1px solid #D3E2F0">
+              <input id="input-email" maxlength="120" aria-describedby="email-err" type="email" placeholder="name@example.com" autocomplete="email" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; min-width: 0; border: 1px solid #D3E2F0">
+              <span id="email-err" class="hidden" role="alert" style="font-size: 12px; color: #c0392b">Enter a valid email, or leave it blank.</span>
             </label>
           </div>
 
@@ -311,6 +325,8 @@
             <span id="location-hint">Encrypted registration & tamper-evident verification</span>
           </div>
 
+          <div id="register-error-box" class="hidden" role="alert" style="padding: 12px 14px; border-radius: 12px; background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.35); color: #991b1b; font-size: 13px; line-height: 1.5"></div>
+
           <!-- Primary Submit Action & Seamless Big-Tech Legal Consent -->
           <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px">
             <button type="submit" id="submit-btn" style="display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 15px; color: #F2FAFF; background: linear-gradient(180deg, #0a3474, #052659); border: none; border-radius: 12px; padding: 16px 18px; cursor: pointer; box-shadow: 0 16px 32px -14px rgba(5,38,89,0.65), inset 0 1px 0 rgba(193,232,255,0.2)">
@@ -318,7 +334,7 @@
               <span id="submit-text">Activate Warranty & Show Card</span>
             </button>
             <p style="margin: 0; font-size: 11.5px; line-height: 1.55; color: #6b84a0; text-align: center; text-wrap: balance">
-              By activating your warranty, you agree to Hesyra Labs' <a href="#" id="view-terms-link" style="color: #052659; font-weight: 600; text-decoration: underline">Warranty Terms</a> and acknowledge our <a href="#" id="view-privacy-link" style="color: #052659; font-weight: 600; text-decoration: underline">Privacy Policy</a>.
+              By activating your warranty, you agree to Hesyra Labs' <a href="#terms" id="view-terms-link" style="color: #052659; font-weight: 600; text-decoration: underline">Warranty Terms</a> and acknowledge our <a href="#privacy" id="view-privacy-link" style="color: #052659; font-weight: 600; text-decoration: underline">Privacy Policy</a>.
             </p>
           </div>
         </div>
@@ -326,19 +342,19 @@
     </div>
 
     <!-- PANEL 2: PATIENT CHECK-IN / LOGIN FLOW -->
-    <div id="panel-login" class="hidden" style="display: flex; flex-direction: column; gap: 20px">
-      <div style="background: rgba(255,255,255,0.65); border: 1px solid #D3E2F0; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 18px">
+    <div id="panel-login" role="tabpanel" class="hidden" style="display: flex; flex-direction: column; gap: 20px">
+      <form id="login-form" novalidate style="background: rgba(255,255,255,0.65); border: 1px solid #D3E2F0; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 18px">
         
         <!-- Error Banner for Wrong Phone Authentication -->
-        <div id="login-error-box" class="hidden" style="display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 12px; background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.35); color: #991b1b; font-size: 13px; line-height: 1.5; animation: hw-fade 0.3s ease both">
+        <div id="login-error-box" class="hidden" role="alert" style="display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 12px; background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.35); color: #991b1b; font-size: 13px; line-height: 1.5; animation: hw-fade 0.3s ease both">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none; margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <div><strong>Authentication Failed:</strong> The phone number is wrong. Please use the one entered during registration. For patient privacy, unauthorized access is blocked.</div>
+          <div id="login-error-text">That phone number doesn’t match our records. Use the number you entered when you registered.</div>
         </div>
 
         <label style="display: flex; flex-direction: column; gap: 7px">
           <span style="font-size: 13px; font-weight: 500; color: #052659">Crown ID</span>
-          <input id="login-crown-id-input" placeholder="ZIR-4510" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" style="font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; border: 1px solid #D3E2F0">
-          <span id="login-id-err" class="hidden" style="font-size: 12px; color: #c0392b">Enter your Crown ID.</span>
+          <input id="login-crown-id-input" aria-describedby="login-id-err" placeholder="ZIR-4510" maxlength="300" autocomplete="off" autocapitalize="characters" spellcheck="false" style="font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; border: 1px solid #D3E2F0">
+          <span id="login-id-err" class="hidden" role="alert" style="font-size: 12px; color: #c0392b">Enter your Crown ID.</span>
         </label>
 
         <label style="display: flex; flex-direction: column; gap: 7px">
@@ -346,11 +362,11 @@
             <span style="font-size: 13px; font-weight: 500; color: #052659">Registered Phone Number</span>
             <span id="login-masked-hint" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5483B3"></span>
           </div>
-          <input id="login-phone-input" type="tel" inputmode="tel" placeholder="Enter phone used at registration" autocomplete="tel" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; border: 1px solid #D3E2F0">
-          <span id="login-phone-err" class="hidden" style="font-size: 12px; color: #c0392b">Enter your registered mobile number.</span>
+          <input id="login-phone-input" maxlength="20" aria-describedby="login-phone-err" type="tel" inputmode="tel" placeholder="Enter phone used at registration" autocomplete="tel" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; border: 1px solid #D3E2F0">
+          <span id="login-phone-err" class="hidden" role="alert" style="font-size: 12px; color: #c0392b">Enter your registered mobile number.</span>
         </label>
 
-        <button type="button" id="login-submit-btn" style="display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 15px; color: #F2FAFF; background: linear-gradient(180deg, #0a3474, #052659); border: none; border-radius: 12px; padding: 15px 18px; cursor: pointer; box-shadow: 0 16px 32px -14px rgba(5,38,89,0.65), inset 0 1px 0 rgba(193,232,255,0.2)">
+        <button type="submit" id="login-submit-btn" style="display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 15px; color: #F2FAFF; background: linear-gradient(180deg, #0a3474, #052659); border: none; border-radius: 12px; padding: 15px 18px; cursor: pointer; box-shadow: 0 16px 32px -14px rgba(5,38,89,0.65), inset 0 1px 0 rgba(193,232,255,0.2)">
           <span id="login-spinner" class="hidden" style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(242,250,255,0.3); border-top-color: #F2FAFF; animation: hw-spin 0.8s linear infinite"></span>
           <span id="login-btn-text">Verify Identity & View Card</span>
         </button>
@@ -358,17 +374,17 @@
         <div style="display: flex; justify-content: center; align-items: center; padding-top: 4px; font-size: 12.5px">
           <button type="button" id="switch-to-register-link" style="background: none; border: none; padding: 0; color: #052659; font-weight: 500; cursor: pointer; text-decoration: underline">Register a new crown</button>
         </div>
-      </div>
+      </form>
     </div>
   </div>
 
   <!-- WARRANTY TERMS & COMPLIANCE MODAL -->
-  <div id="terms-modal" class="hidden" data-noprint="1" style="position: fixed; inset: 0; z-index: 50; background: rgba(2,16,36,0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: flex-end; justify-content: center; animation: hw-fadebg 0.25s ease-out both">
+  <div id="terms-modal" class="hidden" data-noprint="1" role="dialog" aria-modal="true" aria-labelledby="terms-title" style="position: fixed; inset: 0; z-index: 50; background: rgba(2,16,36,0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: flex-end; justify-content: center; animation: hw-fadebg 0.25s ease-out both">
     <div style="width: 100%; max-width: 480px; max-height: 84svh; overflow-y: auto; box-sizing: border-box; background: linear-gradient(180deg, #072a5e, #021a3d); border: 1px solid rgba(193,232,255,0.18); border-bottom: none; border-radius: 22px 22px 0 0; padding: 12px 22px 32px; display: flex; flex-direction: column; gap: 16px; font-family: 'Inter', sans-serif; animation: hw-sheet 0.5s cubic-bezier(0.16, 1, 0.3, 1) both">
       <span style="align-self: center; width: 38px; height: 4px; border-radius: 4px; background: rgba(193,232,255,0.25)"></span>
       
       <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
-        <span style="font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 17px; color: #F2FAFF">Legal & Regulatory Information</span>
+        <span id="terms-title" style="font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 17px; color: #F2FAFF">Legal &amp; Regulatory Information</span>
         <button type="button" id="close-terms" aria-label="Close" style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(193,232,255,0.2); background: none; color: #C1E8FF; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
         </button>
@@ -376,8 +392,8 @@
 
       <!-- Legal Policy Sub-Tabs -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; background: rgba(2,16,36,0.6); padding: 3px; border-radius: 10px; border: 1px solid rgba(193,232,255,0.15)">
-        <button type="button" id="modal-tab-terms" style="padding: 8px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: #C1E8FF; color: #021024; transition: all 0.2s">Warranty Terms</button>
-        <button type="button" id="modal-tab-privacy" style="padding: 8px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: transparent; color: #7DA0CA; transition: all 0.2s">Privacy Policy</button>
+        <button type="button" id="modal-tab-terms" aria-pressed="true" style="padding: 8px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: #C1E8FF; color: #021024; transition: all 0.2s">Warranty Terms</button>
+        <button type="button" id="modal-tab-privacy" aria-pressed="false" style="padding: 8px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: transparent; color: #7DA0CA; transition: all 0.2s">Privacy Policy</button>
       </div>
 
       <!-- TAB CONTENT 1: WARRANTY TERMS -->
@@ -424,7 +440,7 @@
         </div>
         <div>
           <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #7DA0CA">4. Network Security & Audit Trails</span>
-          <p style="margin: 4px 0 0">Public IP addresses and timestamps are recorded automatically to create tamper-evident verification logs, prevent counterfeit claims, and protect patient identity against fraudulent registration.</p>
+          <p style="margin: 4px 0 0">Public IP addresses, an approximate city/region derived from them, and timestamps are recorded at registration to create tamper-evident verification logs, prevent counterfeit claims, and protect patient identity against fraudulent registration. The approximate location is resolved through a third-party IP lookup service; your name and phone number are never sent to it.</p>
         </div>
       </div>
 
@@ -433,898 +449,6 @@
 
 </div>
 
-<script>
-// ========================================================
-// HESYRA LABS ZERO-SERVER CORE ENGINE
-// Direct Google Sheets Sync & Privacy Compliant Gateway
-// ========================================================
-
-// 1. In-Memory / Local Storage Database Simulator (Matches Google Sheet Schema Exactly)
-const DEFAULT_REGISTRY = {
-  'ZIR-4510': {
-    crownId: 'ZIR-4510',
-    dispatchStatus: 'Dispatched',
-    dispatchDate: '2026-08-19',
-    warrantyYears: 5,
-    expiryDate: '2031-08-19',
-    deliveryDate: '2026-08-21',
-    product: 'Zirconia Crown',
-    tier: 'Multi-Layer 3D Pro',
-    materialFull: 'Zirconia crown · multi-layer',
-    tooth: '16, 17',
-    shade: 'A2',
-    caseRef: 'JOB-1042',
-    dentist: 'Dr Aarav Deshmukh',
-    clinic: 'Smile Studio Dental Care, Nagpur',
-    opsNotes: 'Batch-A8 · Precision Sintered · Passed QA',
-    issued: '19 Aug 26',
-    issuedFull: '19 Aug 2026',
-    issuedYear: '2026',
-    validThru: '08 / 31',
-    validUntil: '19 Aug 2031',
-    patient: '',
-    phone: '',
-    email: '',
-    consentAgreed: '',
-    consentTimestamp: '',
-    locationCity: '',
-    locationRegion: '',
-    locationCountry: '',
-    locationIp: '',
-    registeredAt: '',
-    lastLogin: '',
-    warrantyId: 'HLW ZIR 4510 2608'
-  },
-  'CER-8942': {
-    crownId: 'CER-8942',
-    dispatchStatus: 'Delivered',
-    dispatchDate: '2026-10-15',
-    warrantyYears: 5,
-    expiryDate: '2031-10-15',
-    deliveryDate: '2026-10-17',
-    product: 'Ceramic Crown',
-    tier: 'Ceramic-Hybrid Prime',
-    materialFull: 'Ceramic-hybrid crown',
-    tooth: '19 (Molar)',
-    shade: 'B1',
-    caseRef: 'JOB-1088',
-    dentist: 'Dr Sarah Jenkins',
-    clinic: 'Apex Dental Care, Mumbai',
-    opsNotes: 'Glazed Finish · Delivered to Clinic',
-    issued: '15 Oct 26',
-    issuedFull: '15 Oct 2026',
-    issuedYear: '2026',
-    validThru: '10 / 31',
-    validUntil: '15 Oct 2031',
-    patient: 'JANE DOE',
-    phone: '9822012345',
-    email: 'jane.doe@example.com',
-    consentAgreed: 'AGREED - v1.0 [T&C + 3rd-Party Data Sharing]',
-    consentTimestamp: '2026-10-15 11:30:00',
-    locationCity: 'Mumbai',
-    locationRegion: 'Maharashtra',
-    locationCountry: 'India',
-    locationIp: '203.0.113.19',
-    registeredAt: '2026-10-15 11:30:00',
-    lastLogin: '2026-10-25 14:10:00',
-    warrantyId: 'HLW CER 8942 2610'
-  },
-  'EMX-1001': {
-    crownId: 'EMX-1001',
-    dispatchStatus: 'Dispatched',
-    dispatchDate: '2026-10-01',
-    warrantyYears: 5,
-    expiryDate: '2031-10-01',
-    deliveryDate: '2026-10-03',
-    product: 'E.max Crown',
-    tier: 'Lithium Disilicate',
-    materialFull: 'E.max lithium disilicate crown',
-    tooth: '8 (Central Incisor)',
-    shade: 'BL2',
-    caseRef: 'JOB-1102',
-    dentist: 'Dr Arthur Miller',
-    clinic: 'Prime Aesthetics Lab, Delhi',
-    opsNotes: 'High Translucency · Dispatched via Express',
-    issued: '01 Oct 26',
-    issuedFull: '01 Oct 2026',
-    issuedYear: '2026',
-    validThru: '10 / 31',
-    validUntil: '01 Oct 2031',
-    patient: '',
-    phone: '',
-    email: '',
-    consentAgreed: '',
-    consentTimestamp: '',
-    locationCity: '',
-    locationRegion: '',
-    locationCountry: '',
-    locationIp: '',
-    registeredAt: '',
-    lastLogin: '',
-    warrantyId: 'HLW EMX 1001 2610'
-  }
-};
-
-function getLocalDatabase() {
-  try {
-    const raw = localStorage.getItem('hesyra_registry');
-    if (raw) return JSON.parse(raw);
-  } catch (e) {}
-  return JSON.parse(JSON.stringify(DEFAULT_REGISTRY));
-}
-
-function saveLocalDatabase(db) {
-  try {
-    localStorage.setItem('hesyra_registry', JSON.stringify(db));
-  } catch (e) {}
-}
-
-let localDb = getLocalDatabase();
-let currentCase = localDb['ZIR-4510'];
-const SCRIPT_ID = 'AKfycbzz4LafuelRlkPqFCivCO0RnU_PlmH0sqWXakF9AA2NYEG2NxFrjDtVKyVs1PuEBoXxgw';
-const GSHEET_URL = 'https://script.google.com/macros/s/AKfycbzz4LafuelRlkPqFCivCO0RnU_PlmH0sqWXakF9AA2NYEG2NxFrjDtVKyVs1PuEBoXxgw/exec';
-let gsheetUrl = GSHEET_URL;
-
-// DOM Elements
-const page = document.getElementById('page');
-const cardViewSection = document.getElementById('card-view-section');
-const formViewSection = document.getElementById('form-view-section');
-const stage = document.getElementById('stage');
-const card = document.getElementById('card');
-const flipper = document.getElementById('flipper');
-const flipHint = document.getElementById('flip-hint');
-
-// Card Front Elements
-const cardProduct = document.getElementById('card-product');
-const cardMeta = document.getElementById('card-meta');
-const cardPatient = document.getElementById('card-patient');
-const cardWarrantyId = document.getElementById('card-warranty-id');
-const cardValidThru = document.getElementById('card-valid-thru');
-
-// Card Back Elements
-const backTooth = document.getElementById('back-tooth');
-const backShade = document.getElementById('back-shade');
-const backCase = document.getElementById('back-case');
-const backDentist = document.getElementById('back-dentist');
-const backIssued = document.getElementById('back-issued');
-
-// Dashboard Meta Elements
-const dashRestoration = document.getElementById('dash-restoration');
-const dashClinic = document.getElementById('dash-clinic');
-const dashWarrantyId = document.getElementById('dash-warranty-id');
-const dashIssuedDate = document.getElementById('dash-issued-date');
-const dashUntilDate = document.getElementById('dash-until-date');
-
-// Navigation & Actions
-const downloadPdfBtn = document.getElementById('download-pdf-btn');
-
-// Mode Tabs
-const tabRegisterBtn = document.getElementById('tab-register-btn');
-const tabLoginBtn = document.getElementById('tab-login-btn');
-const panelRegister = document.getElementById('panel-register');
-const panelLogin = document.getElementById('panel-login');
-const portalHeading = document.getElementById('portal-heading');
-const portalSubhead = document.getElementById('portal-subhead');
-
-// Register Form Elements
-const crownIdInput = document.getElementById('crown-id-input');
-const crownValidIcon = document.getElementById('crown-valid-icon');
-const idHint = document.getElementById('id-hint');
-const matchBox = document.getElementById('match-box');
-const formMatchTitle = document.getElementById('form-match-title');
-const formMatchClinic = document.getElementById('form-match-clinic');
-const formMatchFitted = document.getElementById('form-match-fitted');
-
-const step1Num = document.getElementById('step1-num');
-const step1Check = document.getElementById('step1-check');
-const stepConnector = document.getElementById('step-connector');
-const step2Indicator = document.getElementById('step2-indicator');
-const step2Node = document.getElementById('step2-node');
-const step2Section = document.getElementById('step2-section');
-
-const inputName = document.getElementById('input-name');
-const inputPhone = document.getElementById('input-phone');
-const inputEmail = document.getElementById('input-email');
-const phoneSmartHelper = document.getElementById('phone-smart-helper');
-const phoneAuthTag = document.getElementById('phone-auth-tag');
-const phoneHelperText = document.getElementById('phone-helper-text');
-
-const nameErr = document.getElementById('name-err');
-const phoneErr = document.getElementById('phone-err');
-
-const submitBtn = document.getElementById('submit-btn');
-const submitSpinner = document.getElementById('submit-spinner');
-const submitText = document.getElementById('submit-text');
-const locationHint = document.getElementById('location-hint');
-
-// Login Form Elements
-const loginCrownIdInput = document.getElementById('login-crown-id-input');
-const loginPhoneInput = document.getElementById('login-phone-input');
-const loginMaskedHint = document.getElementById('login-masked-hint');
-const loginErrorBox = document.getElementById('login-error-box');
-const loginIdErr = document.getElementById('login-id-err');
-const loginPhoneErr = document.getElementById('login-phone-err');
-const loginSubmitBtn = document.getElementById('login-submit-btn');
-const loginSpinner = document.getElementById('login-spinner');
-const loginBtnText = document.getElementById('login-btn-text');
-const switchToRegisterLink = document.getElementById('switch-to-register-link');
-
-// Legal Modal Elements
-const openTerms = document.getElementById('open-terms');
-const closeTerms = document.getElementById('close-terms');
-const termsModal = document.getElementById('terms-modal');
-const viewTermsLink = document.getElementById('view-terms-link');
-const viewPrivacyLink = document.getElementById('view-privacy-link');
-const modalTabTerms = document.getElementById('modal-tab-terms');
-const modalTabPrivacy = document.getElementById('modal-tab-privacy');
-const modalContentTerms = document.getElementById('modal-content-terms');
-const modalContentPrivacy = document.getElementById('modal-content-privacy');
-
-// 2. Google Apps Script Bridge & Network Client
-
-// Background Location Fetcher
-async function captureBackgroundLocation() {
-  const loc = {
-    city: 'Unknown',
-    region: 'Unknown',
-    country: 'Unknown',
-    ip: 'Unknown',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown'
-  };
-
-  try {
-    const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(2800) });
-    if (res.ok) {
-      const data = await res.json();
-      loc.city = data.city || 'Unknown';
-      loc.region = data.region || 'Unknown';
-      loc.country = data.country_name || 'Unknown';
-      loc.ip = data.ip || 'Unknown';
-      return loc;
-    }
-  } catch (err) {}
-
-  try {
-    const res2 = await fetch('https://ipwho.is/', { signal: AbortSignal.timeout(2500) });
-    if (res2.ok) {
-      const d2 = await res2.json();
-      loc.city = d2.city || 'Unknown';
-      loc.region = d2.region || 'Unknown';
-      loc.country = d2.country || 'Unknown';
-      loc.ip = d2.ip || 'Unknown';
-      return loc;
-    }
-  } catch (err2) {}
-
-  return loc;
-}
-
-// Phone Number Cleaner
-function cleanPhone(val) {
-  return (val || '').toString().replace(/\D/g, '');
-}
-
-function phonesMatch(p1, p2) {
-  const s1 = cleanPhone(p1);
-  const s2 = cleanPhone(p2);
-  if (!s1 || !s2) return false;
-  const sub1 = s1.length >= 10 ? s1.slice(-10) : s1;
-  const sub2 = s2.length >= 10 ? s2.slice(-10) : s2;
-  return sub1 === sub2;
-}
-
-function maskPhone(val) {
-  const c = cleanPhone(val);
-  if (!c) return '';
-  const last4 = c.slice(-4);
-  return `ending in ••••• ${last4}`;
-}
-
-// API: Lookup Crown ID
-async function lookupCrown(id) {
-  const normId = (id || '').trim().toUpperCase();
-
-  // If live Google Apps Script configured
-  if (gsheetUrl) {
-    try {
-      const res = await fetch(`${gsheetUrl}?action=lookup&id=${encodeURIComponent(normId)}`, { signal: AbortSignal.timeout(6000) });
-      if (res.ok) {
-        const text = await res.text();
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          console.warn('Endpoint returned non-JSON response (ensure Apps Script is deployed as Web App):', text.slice(0, 100));
-        }
-      }
-    } catch (err) {
-      console.warn('Google Sheet lookup error, falling back to local simulator:', err);
-    }
-  }
-
-  // Local Storage Simulator Fallback
-  localDb = getLocalDatabase();
-  const found = localDb[normId];
-  if (!found) {
-    return { success: false, error: 'Crown ID not found in database.' };
-  }
-
-  const isReg = cleanPhone(found.phone).length > 0;
-  if (!isReg) {
-    return {
-      success: true,
-      isRegistered: false,
-      crown: found
-    };
-  } else {
-    return {
-      success: true,
-      isRegistered: true,
-      crownId: found.crownId,
-      product: found.product,
-      clinic: found.clinic,
-      maskedPhone: maskPhone(found.phone)
-    };
-  }
-}
-
-// API: Register Crown
-async function registerCrown(crownId, patientName, phone, email, consentAgreed, location) {
-  const normId = crownId.trim().toUpperCase();
-  const cPhone = cleanPhone(phone);
-
-  if (gsheetUrl) {
-    try {
-      const q = new URLSearchParams({
-        action: 'register',
-        id: normId,
-        patientId: normId,
-        patientName: patientName,
-        phone: cPhone,
-        email: email,
-        consentAgreed: consentAgreed ? 'true' : 'false',
-        city: location.city || 'Unknown',
-        region: location.region || 'Unknown',
-        country: location.country || 'Unknown',
-        ip: location.ip || 'Unknown'
-      });
-
-      const res = await fetch(`${gsheetUrl}?${q.toString()}`, { signal: AbortSignal.timeout(8000) });
-      if (res.ok) {
-        const text = await res.text();
-        try {
-          const json = JSON.parse(text);
-          if (json && (json.success !== undefined || json.error)) {
-            return json;
-          }
-        } catch (e) {
-          console.warn('Registration endpoint returned non-JSON response:', text.slice(0, 100));
-        }
-      }
-    } catch (err) {
-      console.warn('Google Sheet registration failed, saving locally:', err);
-    }
-  }
-
-  // Local Storage Simulator Execution
-  localDb = getLocalDatabase();
-  let c = localDb[normId];
-  if (!c) {
-    c = {
-      crownId: normId,
-      status: 'AVAILABLE',
-      product: normId.startsWith('CER') ? 'Ceramic Crown' : 'Zirconia Crown',
-      materialFull: normId.startsWith('CER') ? 'Ceramic-hybrid crown' : 'Zirconia crown · multi-layer',
-      tooth: '16, 17',
-      shade: 'A2',
-      caseRef: `JOB-${normId.replace('-', '')}`,
-      dentist: 'Dr Aarav Deshmukh',
-      clinic: 'Smile Studio Dental Care, Nagpur',
-      issued: '19 Aug 26',
-      issuedFull: '19 Aug 2026',
-      issuedYear: '2026',
-      validThru: '08 / 31',
-      validUntil: '19 Aug 2031',
-      warrantyId: `HLW ${normId.replace('-', ' ')} 2608`
-    };
-  }
-
-  if (cleanPhone(c.phone).length > 0) {
-    return {
-      success: false,
-      alreadyRegistered: true,
-      error: 'This crown is already registered to a phone number. Please use the check-in tab to login.'
-    };
-  }
-
-  const now = new Date().toISOString();
-  c.status = 'REGISTERED';
-  c.patient = patientName.toUpperCase();
-  c.phone = cPhone;
-  c.email = email;
-  c.consentAgreed = 'YES - v1.0 [T&C + Third-Party Partner Data Sharing]';
-  c.consentTimestamp = now;
-  c.locationCity = location.city || 'Unknown';
-  c.locationRegion = location.region || 'Unknown';
-  c.locationCountry = location.country || 'Unknown';
-  c.locationIp = location.ip || 'Unknown';
-  c.registeredAt = now;
-  c.lastLogin = now;
-
-  localDb[normId] = c;
-  saveLocalDatabase(localDb);
-
-  return {
-    success: true,
-    message: 'Warranty activated successfully.',
-    crown: c
-  };
-}
-
-// API: Verify Login
-async function verifyLogin(crownId, phone) {
-  const normId = crownId.trim().toUpperCase();
-  const cPhone = cleanPhone(phone);
-
-  if (gsheetUrl) {
-    try {
-      const res = await fetch(`${gsheetUrl}?action=verify_login&id=${encodeURIComponent(normId)}&phone=${encodeURIComponent(cPhone)}`, {
-        signal: AbortSignal.timeout(6000)
-      });
-      if (res.ok) {
-        const text = await res.text();
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          console.warn('Verification endpoint returned non-JSON response:', text.slice(0, 100));
-        }
-      }
-    } catch (err) {
-      console.warn('Google Sheet verification error, checking local simulator:', err);
-    }
-  }
-
-  // Local Storage Simulator Verification
-  localDb = getLocalDatabase();
-  const c = localDb[normId];
-  if (!c) {
-    return { success: false, error: 'Crown ID not found.' };
-  }
-
-  const registeredPhone = cleanPhone(c.phone);
-  if (!registeredPhone) {
-    return {
-      success: false,
-      needsRegistration: true,
-      error: 'This crown has not been registered yet. Please register first.'
-    };
-  }
-
-  if (phonesMatch(cPhone, registeredPhone)) {
-    c.lastLogin = new Date().toISOString();
-    localDb[normId] = c;
-    saveLocalDatabase(localDb);
-    return {
-      success: true,
-      verified: true,
-      crown: c
-    };
-  } else {
-    return {
-      success: false,
-      verified: false,
-      error: 'Authentication failed. The phone number is wrong. Please use the one you entered at the time of registration.'
-    };
-  }
-}
-
-// 3. Tab Switching Logic
-function setPortalMode(mode) {
-  loginErrorBox.classList.add('hidden');
-  if (mode === 'register') {
-    tabRegisterBtn.style.background = '#052659';
-    tabRegisterBtn.style.color = '#F2FAFF';
-    tabLoginBtn.style.background = 'transparent';
-    tabLoginBtn.style.color = '#5483B3';
-    panelRegister.classList.remove('hidden');
-    panelLogin.classList.add('hidden');
-    portalHeading.textContent = 'Register Your Crown';
-    portalSubhead.textContent = 'Enter the ID on your box to activate your 5-year digital warranty.';
-  } else {
-    tabLoginBtn.style.background = '#052659';
-    tabLoginBtn.style.color = '#F2FAFF';
-    tabRegisterBtn.style.background = 'transparent';
-    tabRegisterBtn.style.color = '#5483B3';
-    panelLogin.classList.remove('hidden');
-    panelRegister.classList.add('hidden');
-    portalHeading.textContent = 'Patient Check-In';
-    portalSubhead.textContent = 'Enter your Crown ID and registered mobile number to access your card.';
-  }
-}
-
-tabRegisterBtn.addEventListener('click', () => setPortalMode('register'));
-tabLoginBtn.addEventListener('click', () => setPortalMode('login'));
-switchToRegisterLink.addEventListener('click', () => setPortalMode('register'));
-
-// 4. Initial URL Parameter Detection & Landing View
-const params = new URLSearchParams(window.location.search);
-const typeParam = (params.get('type') || '').toLowerCase();
-const idParam = (params.get('id') || '').toUpperCase();
-const viewParam = (params.get('view') || '').toLowerCase();
-
-if (typeParam.includes('cer')) {
-  currentCase = localDb['CER-8942'] || DEFAULT_REGISTRY['CER-8942'];
-} else {
-  currentCase = localDb['ZIR-4510'] || DEFAULT_REGISTRY['ZIR-4510'];
-}
-
-renderCardData(currentCase);
-
-// Production entry flow: unauthenticated users land on Registration / Check-In portal
-if (idParam) {
-  crownIdInput.value = idParam;
-  loginCrownIdInput.value = idParam;
-  showFormView();
-  resolveCrownRegistration(idParam, false);
-} else if (viewParam === 'card') {
-  showCardView();
-} else {
-  showFormView();
-  setPortalMode('register');
-}
-
-// 5. Crown ID Live Lookup & Automatic Tab Selection Handler
-let lookupDebounce = null;
-
-function handleCrownIdInput(val) {
-  let v = (val || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (v.length > 3) v = v.slice(0, 3) + '-' + v.slice(3, 7);
-  v = v.slice(0, 8);
-  crownIdInput.value = v;
-  loginCrownIdInput.value = v;
-
-  clearTimeout(lookupDebounce);
-  lookupDebounce = setTimeout(() => {
-    resolveCrownRegistration(v, true);
-  }, 220);
-}
-
-crownIdInput.addEventListener('input', (e) => handleCrownIdInput(e.target.value));
-loginCrownIdInput.addEventListener('input', (e) => handleCrownIdInput(e.target.value));
-
-async function resolveCrownRegistration(id, autoFocus = false) {
-  const ok = /^[A-Z]{3}-\d{4}$/.test(id);
-  if (!ok) {
-    crownValidIcon.classList.add('hidden');
-    step1Num.classList.remove('hidden');
-    step1Check.classList.add('hidden');
-    matchBox.classList.add('hidden');
-    stepConnector.classList.add('hidden');
-    step2Indicator.classList.add('hidden');
-    step2Section.classList.add('hidden');
-    loginMaskedHint.textContent = '';
-
-    if (id.length >= 8) {
-      idHint.textContent = 'Format looks like ZIR-4510. Check the label.';
-      idHint.style.color = '#c0392b';
-    } else {
-      idHint.textContent = 'Printed on the packaging label of your crown.';
-      idHint.style.color = '#6b84a0';
-    }
-    return;
-  }
-
-  idHint.textContent = 'Checking laboratory registry…';
-  idHint.style.color = '#5483B3';
-
-  const res = await lookupCrown(id);
-
-  if (res.success && res.isRegistered) {
-    // ALREADY REGISTERED: Automatically select Patient Check-In tab!
-    setPortalMode('login');
-    loginCrownIdInput.value = id;
-    crownIdInput.value = id;
-    loginMaskedHint.textContent = res.maskedPhone ? `Registered ${res.maskedPhone}` : '';
-    loginErrorBox.classList.add('hidden');
-    if (autoFocus) loginPhoneInput.focus();
-    return;
-  }
-
-  if (res.success && !res.isRegistered) {
-    // UNREGISTERED: Automatically select Register Crown tab & progressively reveal Step 2!
-    setPortalMode('register');
-    crownIdInput.value = id;
-    loginCrownIdInput.value = id;
-    crownValidIcon.classList.remove('hidden');
-    step1Num.classList.add('hidden');
-    step1Check.classList.remove('hidden');
-    idHint.textContent = 'Crown verified in laboratory registry.';
-    idHint.style.color = '#16a34a';
-
-    const c = res.crown;
-    formMatchTitle.textContent = c.materialFull || c.product;
-    formMatchClinic.textContent = (c.clinic || 'Smile Studio Dental Care') + ' · ' + (c.dentist || 'Dr Aarav Deshmukh');
-    formMatchFitted.textContent = 'Dispatched ' + (c.issued || '19 Aug 26') + ' · Teeth ' + (c.tooth || '16, 17');
-    matchBox.classList.remove('hidden');
-
-    stepConnector.classList.remove('hidden');
-    step2Indicator.classList.remove('hidden');
-    step2Section.classList.remove('hidden');
-    if (autoFocus) inputName.focus();
-    return;
-  }
-
-  crownValidIcon.classList.add('hidden');
-  idHint.textContent = res.error || 'Crown ID not recognized in database.';
-  idHint.style.color = '#c0392b';
-  matchBox.classList.add('hidden');
-  stepConnector.classList.add('hidden');
-  step2Indicator.classList.add('hidden');
-  step2Section.classList.add('hidden');
-}
-
-// Subtle, Smart Mobile Phone Helper (activates contextually when name is filled / phone focused)
-function updatePhoneHint() {
-  const nameVal = inputName.value.trim();
-  const phoneVal = cleanPhone(inputPhone.value);
-
-  if (nameVal.length >= 2 || document.activeElement === inputPhone) {
-    phoneSmartHelper.classList.remove('hidden');
-    phoneAuthTag.classList.remove('hidden');
-  } else if (!phoneVal) {
-    phoneSmartHelper.classList.add('hidden');
-    phoneAuthTag.classList.add('hidden');
-  }
-
-  if (phoneVal.length === 10) {
-    phoneHelperText.innerHTML = '<strong style="color: #166534">Phone linked:</strong> Ready for secure check-in.';
-    phoneSmartHelper.style.background = '#F0FDF4';
-    phoneSmartHelper.style.borderColor = '#BBF7D0';
-    phoneSmartHelper.style.color = '#166534';
-  } else if (phoneVal.length > 0 && phoneVal.length < 10) {
-    phoneHelperText.textContent = `Enter 10-digit mobile number (${phoneVal.length}/10 digits).`;
-    phoneSmartHelper.style.background = '#FFFBEB';
-    phoneSmartHelper.style.borderColor = '#FDE68A';
-    phoneSmartHelper.style.color = '#92400E';
-  } else {
-    phoneHelperText.textContent = 'Permanent check-in key. Strictly required to access your card later.';
-    phoneSmartHelper.style.background = '#F0F7FD';
-    phoneSmartHelper.style.borderColor = '#D0E4F5';
-    phoneSmartHelper.style.color = '#3b5f8a';
-  }
-}
-
-inputName.addEventListener('input', updatePhoneHint);
-inputName.addEventListener('blur', updatePhoneHint);
-inputPhone.addEventListener('focus', updatePhoneHint);
-inputPhone.addEventListener('input', updatePhoneHint);
-
-// 6. Registration Form Submission (Seamless Big-Tech Clickwrap Legal Assent)
-document.getElementById('warranty-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const name = inputName.value.trim();
-  const phone = cleanPhone(inputPhone.value);
-  const email = inputEmail.value.trim();
-  const crownId = crownIdInput.value.trim().toUpperCase();
-
-  let valid = true;
-  if (name.length < 2) { nameErr.classList.remove('hidden'); valid = false; } else { nameErr.classList.add('hidden'); }
-  if (phone.length < 10) { phoneErr.classList.remove('hidden'); valid = false; } else { phoneErr.classList.add('hidden'); }
-
-  if (!valid) return;
-
-  submitBtn.disabled = true;
-  submitSpinner.classList.remove('hidden');
-  submitText.textContent = 'Activating Digital Warranty…';
-  locationHint.textContent = 'Securing registration & activating warranty…';
-
-  const location = await captureBackgroundLocation();
-
-  // Legal consent is established seamlessly via clickwrap
-  const res = await registerCrown(crownId, name, phone, email, true, location);
-
-  submitBtn.disabled = false;
-  submitSpinner.classList.add('hidden');
-  submitText.textContent = 'Activate Warranty & Show Card';
-
-  if (res.success && res.crown) {
-    currentCase = res.crown;
-    renderCardData(currentCase);
-    showCardView();
-  } else if (res.alreadyRegistered) {
-    setPortalMode('login');
-    loginCrownIdInput.value = crownId;
-    loginMaskedHint.textContent = res.maskedPhone ? `Registered ${res.maskedPhone}` : '';
-    loginPhoneInput.focus();
-  } else {
-    alert(res.error || 'Failed to activate warranty. Please try again.');
-  }
-});
-
-// 7. Patient Check-In / Login Form Submission (Strict Phone Authentication)
-loginSubmitBtn.addEventListener('click', async () => {
-  const crownId = loginCrownIdInput.value.trim().toUpperCase();
-  const phone = cleanPhone(loginPhoneInput.value);
-
-  loginErrorBox.classList.add('hidden');
-  let valid = true;
-  if (!crownId) { loginIdErr.classList.remove('hidden'); valid = false; } else { loginIdErr.classList.add('hidden'); }
-  if (phone.length < 10) { loginPhoneErr.classList.remove('hidden'); valid = false; } else { loginPhoneErr.classList.add('hidden'); }
-
-  if (!valid) return;
-
-  loginSubmitBtn.disabled = true;
-  loginSpinner.classList.remove('hidden');
-  loginBtnText.textContent = 'Verifying Identity…';
-
-  const res = await verifyLogin(crownId, phone);
-
-  loginSubmitBtn.disabled = false;
-  loginSpinner.classList.add('hidden');
-  loginBtnText.textContent = 'Verify Identity & View Card';
-
-  if (res.success && res.verified && res.crown) {
-    currentCase = res.crown;
-    renderCardData(currentCase);
-    showCardView();
-  } else {
-    // Show distinct error banner as explicitly requested by user
-    loginErrorBox.classList.remove('hidden');
-    loginErrorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-});
-
-// 8. Navigation & View Switchers
-function showCardView() {
-  formViewSection.classList.add('hidden');
-  cardViewSection.classList.remove('hidden');
-  page.style.background = 'linear-gradient(180deg, #C1E8FF 0%, #7DA0CA 22%, #5483B3 40%, #052659 66%, #021024 100%)';
-  isFlipped = false;
-  flipper.style.transform = 'rotateY(0deg)';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function showFormView() {
-  cardViewSection.classList.add('hidden');
-  formViewSection.classList.remove('hidden');
-  page.style.background = 'linear-gradient(180deg, #F5FAFE 0%, #E6F1FB 45%, #D2E4F5 100%)';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-// 9. Render Card Data
-function renderCardData(c) {
-  cardProduct.textContent = c.product || 'Zirconia Crown';
-  cardMeta.textContent = `Teeth ${c.tooth || '16, 17'} · Shade ${c.shade || 'A2'} · ${c.issuedYear || '2026'}`;
-  cardPatient.textContent = c.patient || 'AUTHENTICATED PATIENT';
-  cardWarrantyId.textContent = c.warrantyId || 'HLW ZIR 4510 2608';
-  cardValidThru.textContent = c.validThru || '08 / 31';
-
-  backTooth.textContent = c.tooth || '16, 17';
-  backShade.textContent = c.shade || 'A2';
-  backCase.textContent = c.caseRef || 'JOB-1042';
-  backDentist.textContent = c.dentist || 'Dr Aarav Deshmukh';
-  backIssued.textContent = c.issued || '19 Aug 26';
-
-  dashRestoration.textContent = c.materialFull || c.product || 'Zirconia crown · multi-layer';
-  dashClinic.textContent = c.clinic || 'Smile Studio Dental Care, Nagpur';
-  dashWarrantyId.textContent = c.warrantyId || 'HLW ZIR 4510 2608';
-  dashIssuedDate.textContent = `Dispatched ${c.issuedFull || '19 Aug 2026'}`;
-  dashUntilDate.textContent = `Until ${c.validUntil || '19 Aug 2031'}`;
-}
-
-// 10. 3D Card Gyroscope & Reflection Physics
-const t = { x: 0.5, y: 0.3, tx: 0.5, ty: 0.3, last: 0 };
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-function setupMotion() {
-  stage.addEventListener('pointermove', (e) => {
-    const r = stage.getBoundingClientRect();
-    t.tx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
-    t.ty = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
-    t.last = performance.now();
-  });
-
-  stage.addEventListener('pointerleave', () => {
-    t.last = 0;
-  });
-
-  window.addEventListener('deviceorientation', (e) => {
-    if (e.gamma == null) return;
-    t.tx = Math.min(1, Math.max(0, 0.5 + e.gamma / 50));
-    t.ty = Math.min(1, Math.max(0, 0.5 + (e.beta - 45) / 50));
-    t.last = performance.now();
-  });
-
-  function loop(now) {
-    if (!reduceMotion && now - t.last > 2200) {
-      t.tx = 0.5 + Math.sin(now / 2600) * 0.32;
-      t.ty = 0.35 + Math.cos(now / 3400) * 0.22;
-    }
-    t.x += (t.tx - t.x) * 0.08;
-    t.y += (t.ty - t.y) * 0.08;
-
-    if (card) {
-      const k = reduceMotion ? 0 : 1;
-      card.style.setProperty('--ry', ((t.x - 0.5) * 18 * k).toFixed(2) + 'deg');
-      card.style.setProperty('--rx', ((0.5 - t.y) * 14 * k).toFixed(2) + 'deg');
-      card.style.setProperty('--mx', (t.x * 100).toFixed(1) + '%');
-      card.style.setProperty('--my', (t.y * 100).toFixed(1) + '%');
-      card.style.setProperty('--gl', (0.35 + Math.hypot(t.x - 0.5, t.y - 0.5) * 0.9).toFixed(3));
-    }
-    requestAnimationFrame(loop);
-  }
-  requestAnimationFrame(loop);
-}
-setupMotion();
-
-// 11. Card Flip
-stage.addEventListener('click', (e) => {
-  if (e.target.closest('#open-terms')) return;
-  isFlipped = !isFlipped;
-  flipper.style.transform = isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)';
-  flipHint.textContent = isFlipped ? 'TAP TO SEE FRONT' : 'TAP CARD FOR CASE DETAILS';
-});
-
-// 12. PDF Print
-downloadPdfBtn.addEventListener('click', () => {
-  const oldTitle = document.title;
-  document.title = 'Hesyra-Warranty-' + (currentCase.warrantyId || 'Card').replace(/\s+/g, '-');
-  isFlipped = false;
-  flipper.style.transform = 'rotateY(0deg)';
-  window.print();
-  setTimeout(() => { document.title = oldTitle; }, 500);
-});
-
-// 13. Terms & Privacy Policy Modal Controller
-function switchModalPolicy(tab) {
-  if (tab === 'privacy') {
-    modalTabPrivacy.style.background = '#C1E8FF';
-    modalTabPrivacy.style.color = '#021024';
-    modalTabTerms.style.background = 'transparent';
-    modalTabTerms.style.color = '#7DA0CA';
-    modalContentPrivacy.classList.remove('hidden');
-    modalContentTerms.classList.add('hidden');
-  } else {
-    modalTabTerms.style.background = '#C1E8FF';
-    modalTabTerms.style.color = '#021024';
-    modalTabPrivacy.style.background = 'transparent';
-    modalTabPrivacy.style.color = '#7DA0CA';
-    modalContentTerms.classList.remove('hidden');
-    modalContentPrivacy.classList.add('hidden');
-  }
-}
-
-modalTabTerms.addEventListener('click', () => switchModalPolicy('terms'));
-modalTabPrivacy.addEventListener('click', () => switchModalPolicy('privacy'));
-
-openTerms.addEventListener('click', (e) => {
-  e.stopPropagation();
-  switchModalPolicy('terms');
-  termsModal.classList.remove('hidden');
-});
-
-if (viewTermsLink) {
-  viewTermsLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    switchModalPolicy('terms');
-    termsModal.classList.remove('hidden');
-  });
-}
-
-if (viewPrivacyLink) {
-  viewPrivacyLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    switchModalPolicy('privacy');
-    termsModal.classList.remove('hidden');
-  });
-}
-
-closeTerms.addEventListener('click', () => {
-  termsModal.classList.add('hidden');
-});
-termsModal.addEventListener('click', (e) => {
-  if (e.target === termsModal) termsModal.classList.add('hidden');
-});
-</script>
 
 </body>
 </html>

@@ -1,94 +1,90 @@
-# Hesyra Labs — Digital Dental Crown Warranty Engine
+# Hesyra Labs — Digital Dental Crown Warranty
 
-A high-performance, zero-server digital warranty certification platform for custom dental prostheses (Zirconia, Ceramic, and Lithium Disilicate). Built for Hesyra Labs with an interactive 3D metallic certificate card, native Google Sheets master registry, anti-fraud phone verification, and ops software synchronization.
+Patients scan the QR code on their crown box (`https://<site>/?id=ZIR-4510`), register the crown with their name and mobile number, and get a 3D digital warranty card they can flip, reopen later with their phone number, and save as a CR80-sized PDF.
 
----
+- **Frontend:** static site — `index.html`, `app.js`, `config.js`, `assets/`. No build step.
+- **Backend:** `google_sheets_setup.gs`, a Google Apps Script web app over one Google Sheet (`WarrantyMaster`).
+- **Tests:** `npm test` — backend unit tests plus browser end-to-end tests of every patient journey.
 
-## 🌟 Key Features
+## How it works
 
-1. **3D Gyroscopic Warranty Card**:
-   - Realistic 3D card physics responding to cursor movement and device orientation (gyroscope on mobile).
-   - Flip-to-back interaction revealing FDI teeth numbers, VITA shade, laboratory serial/job reference, prescribing dentist, and dispatch date.
-   - High-precision PDF export formatted to standard CR80 ID-card dimensions (85.6mm × 54mm) for printing or patient archiving.
+| Step | What the patient sees | API call |
+|---|---|---|
+| Enter / scan Crown ID | Case details from the lab (material, clinic, dentist, dispatch date) | `GET ?action=lookup&id=` — public fields only |
+| Already registered? | Switched to **Patient Check-In**, shown "Registered ending in 2345" | (same lookup) |
+| Register | Name, mobile, optional email → warranty card | `POST {action:"register"}` |
+| Check in later | Crown ID + registered mobile → warranty card | `POST {action:"verify_login"}` |
 
-2. **Single Master Sheet Architecture (`WarrantyMaster`)**:
-   - Consolidates production, lab logistics, dispatch, warranty expiration, patient registration, and IP geolocation into a single unified 24-column sheet.
-   - Pre-configured native Google Sheets filter view across all 24 columns with frozen row 1 and frozen Column 1 (Case ID) for rapid sorting, search, and lab triage.
+A card stays open for 30 minutes in the same browser tab (session storage, no phone number stored). **Sign out** clears it.
 
-3. **Operations Software / ERP Integration**:
-   - Direct columns for `Dispatch Status`, `Dispatch Date` (official Warranty Start), `Delivery Date`, and auto-computed `Warranty Expiry Date`.
-   - Built-in REST/Webhook endpoint (`?action=ops_update`) allowing external lab management software (Magic Touch, Labstar, EasyRx, custom ERPs) to programmatically update dispatch states and calculate expiry dates.
-   - Google Sheets `onEdit` auto-calculation: directly editing dispatch dates or periods in the sheet automatically computes the warranty expiry date.
+### Security model
+- `lookup` never returns patient name, phone, email, IP or location — only the case details printed by the lab.
+- The first registration binds a phone number to the case. It cannot be changed from the web; to re-assign a crown, clear columns 15–24 of its row in the sheet.
+- Check-in locks for 15 minutes after 5 wrong phone numbers for a case.
+- Personal data travels in POST bodies, never in URLs.
+- Every patient-typed value is stored as literal text, so input like `=IMPORTXML(...)` can never run as a formula in the sheet.
+- Registration and ops writes run under a script lock, so two people can't register one crown at the same moment.
+- `ops_update` requires the `OPS_TOKEN` script property and is refused when it isn't set.
+- If the registry can't be reached, the patient gets a clear error and a retry. Nothing is ever "registered" only in the browser.
+- The page ships a strict Content-Security-Policy (no inline scripts; network access only to Apps Script and the IP-location service).
 
-4. **Patient Authentication & Anti-Fraud Security**:
-   - Strict phone-number binding: once registered, a Case ID cannot be re-registered with another number.
-   - Patient Check-In requires matching the registered phone number (last 10 digits).
-   - Automatic tab selection: scanning or entering an ID instantly routes to **Patient Check-In** (if already registered) or **Register Crown** (if new).
+### Known limit
+Crown IDs are short (`XXX-NNNN`). Someone who guesses the ID of a dispatched, still-unregistered crown could register it first. The real patient would then see "already registered", and the lab can fix it by clearing the patient columns. Register crowns promptly at delivery (or have the clinic do it) to keep that window small.
 
-5. **Compliant Clickwrap Legal Consent**:
-   - Seamless, big-tech clickwrap agreement beneath the activation button.
-   - Embedded corporate legal modal with segmented tabs for **Warranty Terms** (coverage, exclusions, claim protocols) and **Privacy Policy** (compliant with DPDP Act 2023, GDPR, and healthcare data confidentiality standards).
+## Sheet schema (`WarrantyMaster`, 24 columns)
 
----
+| # | Field | Owner |
+|---|---|---|
+| 1 | Case ID (`ZIR-4510`) | Ops |
+| 2 | Dispatch Status (`In Production` / `Dispatched` / `Delivered`) | Ops |
+| 3 | Dispatch Date — **warranty start** | Ops |
+| 4 | Warranty Period (Years) — default 5 | Ops |
+| 5 | Warranty Expiry Date — auto-computed | Auto |
+| 6 | Delivery Date | Ops |
+| 7–14 | Material, Material Tier, Tooth Number(s), Shade, Clinic, Doctor, Lab Job Ref, Ops Notes | Ops |
+| 15–17 | Patient Name, Registered Phone, Registered Email | Patient |
+| 18 | Registration Timestamp | Auto |
+| 19–22 | City, Region, Country, IP (from the patient's IP) | Auto |
+| 23 | Consent status + timestamp | Auto |
+| 24 | Last Check-In | Auto |
 
-## 📋 24-Column Master Sheet Schema
+A crown can only be registered once column 3 (dispatch date) is filled. Setting status to `Dispatched`/`Delivered` with no date fills in today's date. Editing columns 2–4 recomputes the expiry. Empty ops fields show as "—" on the card, so nothing is ever made up.
 
-| Col # | Field Name | Category | Description |
-|---|---|---|---|
-| **1** | `Case ID` | Ops | Unique Crown ID / QR Code Key (e.g. `ZIR-4510`) |
-| **2** | `Dispatch Status` | Ops | Operational state (`Dispatched`, `Delivered`, `In Production`) |
-| **3** | `Dispatch Date` | Ops | **Official Warranty Start Date** (`YYYY-MM-DD`) |
-| **4** | `Warranty Period (Years)` | Ops | Duration in years (`5`, `10`, etc.) |
-| **5** | `Warranty Expiry Date` | Computed | **Final Warranty Date** (`Dispatch Date + Years`) |
-| **6** | `Delivery Date` | Ops | Clinic delivery date |
-| **7** | `Material` | Ops | Prosthesis material (`Zirconia Crown`, `Ceramic Crown`) |
-| **8** | `Material Tier` | Ops | Grade (`Multi-Layer 3D Pro`, `Ceramic-Hybrid Prime`) |
-| **9** | `Tooth Number(s)` | Ops | FDI / Universal notation (`16, 17`, `19`) |
-| **10** | `Shade` | Ops | VITA classical shade (`A2`, `B1`, `BL2`) |
-| **11** | `Clinic Name` | Ops | Destination dental clinic |
-| **12** | `Doctor Name` | Ops | Prescribing clinician |
-| **13** | `Lab Job Ref / Serial` | Ops | Laboratory manufacturing serial |
-| **14** | `Ops Quality Notes` | Ops | Quality control inspection / lot notes |
-| **15** | `Patient Name` | Patient | Full name captured at registration |
-| **16** | `Registered Phone` | Patient | Mobile number locked to case for verification |
-| **17** | `Registered Email` | Patient | Optional patient email |
-| **18** | `Registration Timestamp` | Auto | Date & time of registration |
-| **19** | `Patient City` | Auto | City resolved from client IP |
-| **20** | `Patient Region / State` | Auto | State resolved from client IP |
-| **21** | `Patient Country` | Auto | Country resolved from client IP |
-| **22** | `Patient IP Address` | Auto | Client public IP logged for audit trail |
-| **23** | `T&C Consent Status` | Auto | `AGREED - v1.0 [T&C + Privacy Policy]` |
-| **24** | `Last Check-In Date` | Auto | Timestamp of last successful login |
+## Deploying
 
----
+### 1. Backend (Apps Script) — deploy this first
+1. Open the Google Sheet → **Extensions → Apps Script**, replace the code with `google_sheets_setup.gs`, save.
+2. Run `setupMasterSheet` once from the editor toolbar (creates headers, filters, column formats; it keeps existing data).
+   On a **test** sheet only, you can also run `seedDemoCases` to add sample cases.
+3. If ops software will call `ops_update`: **Project Settings → Script properties → Add** `OPS_TOKEN` = a long random string.
+4. **Deploy → Manage deployments → Edit (pencil) → Version: New version → Deploy.** Keep *Execute as: Me*, *Who has access: Anyone*. The `/exec` URL does not change.
+5. The `onEdit` expiry calculation runs automatically as a simple trigger.
 
-## 🚀 Deployment Guide
+### 2. Frontend
+Put the Web App URL in `config.js` (`apiUrl`), then publish the repo root as a static site (Render / Netlify / Vercel / GitHub Pages; no build command, publish directory `./`). `tests/`, `node_modules/` and `package.json` aren't needed at runtime.
 
-### A. Deploy Frontend (GitHub Pages / Render / Vercel / Netlify)
-1. Push this repository to GitHub:
-   ```bash
-   git init
-   git add .
-   git commit -m "feat: complete production-ready warranty engine"
-   git branch -M main
-   git remote add origin https://github.com/<your-username>/<your-repo-name>.git
-   git push -u origin main
-   ```
-2. **GitHub Pages**:
-   - Go to your repository settings > **Pages**.
-   - Source: `Deploy from a branch` > select `main` / `root`.
-3. **Render / Vercel / Netlify**:
-   - Connect repository as a Static Site.
-   - Publish directory: `./` (root).
-   - No build command required.
+### Ops software integration
+```http
+POST <apiUrl>
+Content-Type: text/plain;charset=utf-8
 
-### B. Deploy Google Apps Script (Backend Database API)
-1. In your Google Sheet, click **Extensions > Apps Script**.
-2. Replace all code with the contents of `google_sheets_setup.gs`.
-3. Press **Ctrl + S** to save.
-4. Click **Deploy > Manage deployments**.
-5. Click the **pencil icon (Edit)** next to your active deployment.
-6. Under **Version**, select **New version**.
-7. Ensure **Execute as: "Me"** and **Who has access: "Anyone"**.
-8. Click **Deploy**.
-9. If creating a new deployment, copy the Web App URL (ends in `/exec`) and update `GSHEET_URL` in `index.html`.
+{"action":"ops_update","token":"<OPS_TOKEN>","id":"ZIR-4510",
+ "dispatchStatus":"Dispatched","dispatchDate":"2026-08-19","warrantyYears":5,
+ "deliveryDate":"2026-08-21","material":"Zirconia Crown","tier":"Multi-Layer 3D Pro",
+ "tooth":"16, 17","shade":"A2","clinic":"Smile Studio, Nagpur","doctor":"Dr A. Deshmukh",
+ "jobRef":"JOB-1042","notes":"Passed QA"}
+```
+Every field except `token` and `id` is optional. Dates are `YYYY-MM-DD` (or `DD/MM/YYYY`). Unknown cases are created with status `In Production`. Patient columns are never touched. The response is `{success, created, crown}` or `{success:false, code, error}`.
+
+### Error codes
+`INVALID_INPUT`, `NOT_FOUND`, `NOT_DISPATCHED`, `ALREADY_REGISTERED`, `NOT_REGISTERED`, `WRONG_PHONE` (with `attemptsLeft`), `LOCKED`, `UNAUTHORIZED`, `BUSY`, `SERVER_ERROR`.
+
+## Development & tests
+```bash
+npm install
+npm test               # backend unit tests + end-to-end tests
+npm run test:backend   # runs google_sheets_setup.gs in a Google Apps Script emulator
+npm run test:e2e       # Playwright, desktop + mobile Chrome
+npm run serve          # site + emulated backend at http://localhost:4173 (try ?id=ZIR-4510)
+```
+The end-to-end tests run the real `.gs` file behind a local `/exec` endpoint. They cover registration, check-in, lockout, outages and timeouts, data-leak checks, formula/HTML injection, session reload and sign-out, the expired-warranty state, printing, the legal modal and mobile layout. Locally they use the installed Google Chrome; CI installs Playwright's Chromium.

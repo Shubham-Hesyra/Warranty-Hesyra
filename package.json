@@ -1,0 +1,15 @@
+{
+  "name": "hesyra-warranty",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Hesyra Labs digital dental crown warranty portal (static site + Google Apps Script backend)",
+  "scripts": {
+    "test": "npm run test:backend && npm run test:e2e",
+    "test:backend": "node --test tests/backend.test.js",
+    "test:e2e": "playwright test",
+    "serve": "node tests/support/server.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
+  }
+}

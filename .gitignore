@@ -11,3 +11,7 @@ Thumbs.db
 Crown-warrenty.zip
 extracted_design/
 node_modules/
+
+# Test tooling
+test-results/
+playwright-report/
