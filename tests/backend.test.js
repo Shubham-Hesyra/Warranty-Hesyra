@@ -325,7 +325,7 @@ test('onEdit stamps dispatch date when status becomes Dispatched', () => {
 
 test('seedDemoCases refuses to touch a registry that already has data', () => {
   const gas = setup();
-  assert.match(gas.ctx.seedDemoCases(), /nothing seeded/);
+  assert.match(gas.ctx.seedDemoCases(), /already has data/);
   gas.load([]);
-  assert.match(gas.ctx.seedDemoCases(), /Seeded 3/);
+  assert.match(gas.ctx.seedDemoCases(), /Seeded 4/);
 });

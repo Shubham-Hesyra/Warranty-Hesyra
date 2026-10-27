@@ -362,7 +362,7 @@
         setHint('Crown IDs look like ZIR-4510 — three letters, then four numbers.', 'error');
         el.crownId.setAttribute('aria-invalid', 'true');
       } else {
-        setHint('Printed on the packaging label of your crown.', 'info');
+        setHint('Printed on the packaging label of your crown (sample: ZIR-4510).', 'info');
       }
       return;
     }

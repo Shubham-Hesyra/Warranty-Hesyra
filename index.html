@@ -257,7 +257,7 @@
             </span>
           </div>
           <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
-            <span id="id-hint" aria-live="polite" style="font-size: 12.5px; line-height: 1.5; color: #6b84a0">Printed on the packaging label of your crown.</span>
+            <span id="id-hint" aria-live="polite" style="font-size: 12.5px; line-height: 1.5; color: #6b84a0">Printed on the packaging label of your crown (sample: <strong style="color: #052659">ZIR-4510</strong>).</span>
             <button type="button" id="lookup-retry-btn" class="hidden" style="background: none; border: 1px solid #5483B3; border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 600; color: #052659; cursor: pointer">Try again</button>
           </div>
 
@@ -353,7 +353,7 @@
 
         <label style="display: flex; flex-direction: column; gap: 7px">
           <span style="font-size: 13px; font-weight: 500; color: #052659">Crown ID</span>
-          <input id="login-crown-id-input" aria-describedby="login-id-err" placeholder="ZIR-4510" maxlength="300" autocomplete="off" autocapitalize="characters" spellcheck="false" style="font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; border: 1px solid #D3E2F0">
+          <input id="login-crown-id-input" aria-describedby="login-id-err" placeholder="CER-8942" maxlength="300" autocomplete="off" autocapitalize="characters" spellcheck="false" style="font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; border: 1px solid #D3E2F0">
           <span id="login-id-err" class="hidden" role="alert" style="font-size: 12px; color: #c0392b">Enter your Crown ID.</span>
         </label>
 
@@ -362,7 +362,7 @@
             <span style="font-size: 13px; font-weight: 500; color: #052659">Registered Phone Number</span>
             <span id="login-masked-hint" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5483B3"></span>
           </div>
-          <input id="login-phone-input" maxlength="20" aria-describedby="login-phone-err" type="tel" inputmode="tel" placeholder="Enter phone used at registration" autocomplete="tel" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; border: 1px solid #D3E2F0">
+          <input id="login-phone-input" maxlength="20" aria-describedby="login-phone-err" type="tel" inputmode="tel" placeholder="+91 98220 12345" autocomplete="tel" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; border: 1px solid #D3E2F0">
           <span id="login-phone-err" class="hidden" role="alert" style="font-size: 12px; color: #c0392b">Enter your registered mobile number.</span>
         </label>
 
@@ -371,8 +371,9 @@
           <span id="login-btn-text">Verify Identity & View Card</span>
         </button>
 
-        <div style="display: flex; justify-content: center; align-items: center; padding-top: 4px; font-size: 12.5px">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 4px; font-size: 12.5px">
           <button type="button" id="switch-to-register-link" style="background: none; border: none; padding: 0; color: #052659; font-weight: 500; cursor: pointer; text-decoration: underline">Register a new crown</button>
+          <span style="font-size: 11px; color: #6b84a0">Sample case: <strong style="color: #052659">CER-8942</strong> &middot; Phone <strong style="color: #052659">+91 98220 12345</strong></span>
         </div>
       </form>
     </div>

@@ -444,18 +444,35 @@ function setupMasterSheet(targetSpreadsheet) {
   return sheet;
 }
 
-/** Test sheets only: adds sample cases if the registry is empty. */
+/** Test sheets only: adds sample cases if the registry is empty or missing sample case. */
 function seedDemoCases() {
   var sheet = getMasterSheet();
-  if (sheet.getLastRow() > 1) return "Registry already has data — nothing seeded.";
+  if (sheet.getLastRow() > 1) {
+    var match = findRowByCaseId(sheet, "CER-8942");
+    if (!match) {
+      var sampleRegistered = [
+        "CER-8942", "Delivered", "2026-08-19", 5, "2031-08-19", "2026-08-21",
+        "Ceramic Crown", "Ceramic-Hybrid Prime", "36", "B1",
+        "Apex Dental Care, Mumbai", "Dr Sarah Jenkins", "JOB-1088", "Passed QA",
+        "JANE DOE", "'9822012345", "jane.doe@example.com", "2026-08-25 10:00:00",
+        "Mumbai", "Maharashtra", "India", "203.0.113.19",
+        "AGREED - v1.0 [T&C + Privacy Policy] @ 2026-08-25 10:00:00", "2026-08-25 10:00:00"
+      ];
+      sheet.appendRow(sampleRegistered);
+      return "Added sample registered case CER-8942 (Phone: 9822012345) to existing registry.";
+    }
+    return "Registry already has data — nothing seeded.";
+  }
   var blank = ["", "", "", "", "", "", "", "", "", ""];
   var rows = [
     ["ZIR-4510", "Dispatched", "2026-08-19", 5, "2031-08-19", "2026-08-21", "Zirconia Crown", "Multi-Layer 3D Pro", "16, 17", "A2", "Smile Studio Dental Care, Nagpur", "Dr Aarav Deshmukh", "JOB-1042", "Batch-A8 · Passed QA"].concat(blank),
+    ["CER-8942", "Delivered", "2026-08-19", 5, "2031-08-19", "2026-08-21", "Ceramic Crown", "Ceramic-Hybrid Prime", "36", "B1", "Apex Dental Care, Mumbai", "Dr Sarah Jenkins", "JOB-1088", "Passed QA",
+      "JANE DOE", "'9822012345", "jane.doe@example.com", "2026-08-25 10:00:00", "Mumbai", "Maharashtra", "India", "203.0.113.19", "AGREED - v1.0 [T&C + Privacy Policy] @ 2026-08-25 10:00:00", "2026-08-25 10:00:00"],
     ["EMX-1001", "Dispatched", "2026-10-01", 5, "2031-10-01", "2026-10-03", "E.max Crown", "Lithium Disilicate", "11", "BL2", "Prime Aesthetics, Delhi", "Dr Arthur Miller", "JOB-1102", ""].concat(blank),
     ["CER-1001", "In Production", "", 5, "", "", "Ceramic Crown", "Ceramic-Hybrid Prime", "14", "A1", "Summit Dental Group, Bangalore", "Dr Lisa Ray", "JOB-1090", "Milling"].concat(blank)
   ];
   sheet.getRange(2, 1, rows.length, NUM_COLS).setValues(rows);
-  return "Seeded " + rows.length + " demo cases.";
+  return "Seeded " + rows.length + " demo cases (including registered sample CER-8942 / 9822012345).";
 }
 
 // ----------------------------------------------------------------------------
