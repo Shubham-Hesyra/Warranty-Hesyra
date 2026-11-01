@@ -414,14 +414,20 @@ test('Download card as PDF opens the print dialog with a named file', async ({ p
   expect(titles[0]).toMatch(/^Hesyra-Warranty-HLW-ZIR-4510-\d{4}$/);
 });
 
-test('print stylesheet renders both faces at ID-card size', async ({ page }) => {
+test('print stylesheet renders both faces on a single page at ID-card size', async ({ page }) => {
   await page.goto('/?id=ZIR-4510');
   await registerAs(page);
   await expect(page.locator('#card-view-section')).toBeVisible();
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('#download-pdf-btn')).toBeHidden();
-  const faces = await page.locator('[data-face]').evaluateAll((els) => els.map((e) => getComputedStyle(e).position));
-  expect(faces).toEqual(['relative', 'relative']);
+  const faces = await page.locator('[data-face]').evaluateAll((els) => els.map((e) => ({
+    position: getComputedStyle(e).position,
+    breakAfter: getComputedStyle(e).breakAfter
+  })));
+  expect(faces).toEqual([
+    { position: 'relative', breakAfter: 'auto' },
+    { position: 'relative', breakAfter: 'auto' }
+  ]);
 });
 
 test('reloading keeps the card open; no sign out or packaging buttons exist', async ({ page }) => {

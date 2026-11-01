@@ -39,15 +39,16 @@
     @keyframes hw-pop { from { transform: translateY(-50%) scale(0.4); opacity: 0; } to { transform: translateY(-50%) scale(1); opacity: 1; } }
     @keyframes hw-spin { to { transform: rotate(360deg); } }
     
-    @page { size: 85.6mm 54mm; margin: 0; }
+    @page { size: auto; margin: 12mm; }
     @media print {
       html, body { background: #ffffff !important; margin: 0 !important; }
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; animation: none !important; transition: none !important; }
       [data-noprint] { display: none !important; }
       [data-page] { background: none !important; padding: 0 !important; min-height: 0 !important; display: block !important; }
-      [data-stage] { width: 85.6mm !important; margin: 0 !important; perspective: none !important; }
+      [data-stage] { width: 85.6mm !important; margin: 10mm auto !important; perspective: none !important; }
       [data-card], [data-flip] { position: static !important; transform: none !important; aspect-ratio: auto !important; }
-      [data-face] { position: relative !important; inset: auto !important; width: 85.6mm !important; height: 54mm !important; transform: none !important; backface-visibility: visible !important; -webkit-backface-visibility: visible !important; border-radius: 0 !important; box-shadow: none !important; break-after: page; page-break-after: always; }
+      [data-face] { position: relative !important; inset: auto !important; width: 85.6mm !important; height: 54mm !important; margin: 0 auto 8mm auto !important; transform: none !important; backface-visibility: visible !important; -webkit-backface-visibility: visible !important; border-radius: 4mm !important; box-shadow: none !important; break-inside: avoid !important; page-break-inside: avoid !important; break-after: auto !important; page-break-after: auto !important; }
+      [data-face]:last-child { margin-bottom: 0 !important; }
     }
     .hidden { display: none !important; }
     input:focus-visible, button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid #5483B3; outline-offset: 2px; }
