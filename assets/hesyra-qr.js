@@ -348,3 +348,4 @@
     global.HesyraQR = HesyraQR;
   }
 })(typeof window !== 'undefined' ? window : this);
+

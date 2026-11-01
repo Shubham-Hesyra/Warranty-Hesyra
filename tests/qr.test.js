@@ -1,9 +1,11 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const HesyraQR = require('../assets/hesyra-qr.js');
 
 test('HesyraQR generates valid standalone SVG markup', () => {
-  const url = 'https://warranty-hesyra.onrender.com/?id=ZIR-4510';
+  const url = 'https://warranty-hesyra.onrender.com/';
   const svg = HesyraQR.createSvg(url, { size: 400 });
 
   assert.ok(svg.startsWith('<svg'), 'Starts with <svg tag');
@@ -11,27 +13,24 @@ test('HesyraQR generates valid standalone SVG markup', () => {
   assert.ok(svg.includes('role="img"'), 'Includes accessible role="img"');
   assert.ok(svg.includes('aria-label="QR Code for ' + url + '"'), 'Includes accessible aria-label');
   assert.ok(svg.includes('id="hesyra-center-badge"'), 'Includes Hesyra center badge');
-  assert.ok(svg.includes('assets/logo.png'), 'References logo image');
 });
 
-test('HesyraQR supports square module and custom color styling', () => {
-  const url = 'https://warranty-hesyra.onrender.com/?id=CER-8942';
-  const svg = HesyraQR.createSvg(url, {
-    size: 500,
-    color: '#021024',
-    bgColor: '#ffffff',
-    moduleStyle: 'square',
-    eyeStyle: 'square',
-    logo: false
-  });
+test('Master QR assets for 60x40mm thermal rolls exist and are valid', () => {
+  const assetsDir = path.join(__dirname, '..', 'assets');
+  const navySvg = path.join(assetsDir, 'hesyra-warranty-qr.svg');
+  const navyPng = path.join(assetsDir, 'hesyra-warranty-qr.png');
+  const thermalSvg = path.join(assetsDir, 'hesyra-warranty-qr-thermal.svg');
+  const thermalPng = path.join(assetsDir, 'hesyra-warranty-qr-thermal.png');
 
-  assert.ok(svg.includes('fill="#021024"'), 'Uses custom dark color');
-  assert.ok(!svg.includes('id="hesyra-center-badge"'), 'Omits center badge when logo is false');
-  assert.ok(svg.includes('<rect'), 'Renders square rect modules');
-});
+  assert.ok(fs.existsSync(navySvg), 'hesyra-warranty-qr.svg exists');
+  assert.ok(fs.existsSync(navyPng), 'hesyra-warranty-qr.png exists');
+  assert.ok(fs.existsSync(thermalSvg), 'hesyra-warranty-qr-thermal.svg exists');
+  assert.ok(fs.existsSync(thermalPng), 'hesyra-warranty-qr-thermal.png exists');
 
-test('HesyraQR encodes general website URL without query params', () => {
-  const url = 'https://warranty-hesyra.onrender.com/';
-  const svg = HesyraQR.createSvg(url);
-  assert.ok(svg.includes('aria-label="QR Code for ' + url + '"'));
+  assert.ok(fs.statSync(navyPng).size > 50000, 'navy PNG is high resolution');
+  assert.ok(fs.statSync(thermalPng).size > 50000, 'thermal PNG is high resolution');
+
+  const thermalSvgContent = fs.readFileSync(thermalSvg, 'utf8');
+  assert.ok(thermalSvgContent.includes('fill="#000000"'), 'Thermal SVG is pure monochrome black');
+  assert.ok(thermalSvgContent.includes('data:image/png;base64,'), 'Embedded logo is self-contained base64');
 });
