@@ -11,7 +11,7 @@
   const CFG = window.HESYRA_CONFIG || {};
   const API_URL = CFG.apiUrl || '';
   const TIMEOUT_MS = CFG.requestTimeoutMs || 20000;
-  const SESSION_KEY = 'hesyra_warranty_session_v2';
+  const SESSION_KEY = 'hesyra_warranty_device_card_v1';
   const SESSION_TTL_MS = (CFG.sessionMinutes || 30) * 60 * 1000;
   const CONSENT_VERSION = 'v1.0';
   const ID_RE = /^[A-Z]{3}-\d{4}$/;
@@ -52,8 +52,6 @@
     dashIssued: $('dash-issued-date'),
     dashUntil: $('dash-until-date'),
     downloadPdf: $('download-pdf-btn'),
-    dashQrBtn: $('dash-qr-btn'),
-    signOut: $('sign-out-btn'),
     tabRegister: $('tab-register-btn'),
     tabLogin: $('tab-login-btn'),
     panelRegister: $('panel-register'),
@@ -274,17 +272,17 @@
   // ==========================================================================
   function saveSession(crown) {
     try {
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ crown, savedAt: Date.now() }));
-    } catch (e) { /* private mode: card simply won't survive a reload */ }
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ crown, savedAt: Date.now() }));
+    } catch (e) { /* private mode */ }
   }
 
   function loadSession() {
     try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
+      const raw = localStorage.getItem(SESSION_KEY);
       if (!raw) return null;
       const s = JSON.parse(raw);
-      if (!s || !s.crown || !s.crown.crownId || Date.now() - s.savedAt > SESSION_TTL_MS) {
-        sessionStorage.removeItem(SESSION_KEY);
+      if (!s || !s.crown || !s.crown.crownId) {
+        localStorage.removeItem(SESSION_KEY);
         return null;
       }
       return s.crown;
@@ -294,7 +292,7 @@
   }
 
   function clearSession() {
-    try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* ignore */ }
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) { /* ignore */ }
   }
 
   // ==========================================================================
@@ -619,7 +617,6 @@
     el.statusLabel.textContent = expired ? 'Warranty expired' : 'Warranty active';
     el.statusTag.textContent = expired ? `Ended ${fmtLong(c.expiryDate)}` : 'Verified genuine';
     el.statusDot.style.background = expired ? '#f59e0b' : '#C1E8FF';
-    if (el.dashQrBtn && c.crownId) el.dashQrBtn.href = 'qr.html?id=' + encodeURIComponent(c.crownId);
     el.statusDot.style.animation = expired ? 'none' : '';
   }
 
@@ -790,7 +787,6 @@
     }
   });
   el.downloadPdf.addEventListener('click', downloadPdf);
-  el.signOut.addEventListener('click', signOut);
 
   el.modalTabTerms.addEventListener('click', () => switchPolicy('terms'));
   el.modalTabPrivacy.addEventListener('click', () => switchPolicy('privacy'));
@@ -807,12 +803,14 @@
   (function boot() {
     const params = new URLSearchParams(window.location.search);
     const idParam = formatCrownId(params.get('id') || '');
-    const session = loadSession();
+    const savedCard = loadSession();
 
-    if (session && (!idParam || idParam === session.crownId)) {
-      openCard(session);
+    // If device already has a registered warranty card, open it directly
+    if (savedCard) {
+      openCard(savedCard);
       return;
     }
+
     showFormView();
     setPortalMode('register');
     if (idParam) {

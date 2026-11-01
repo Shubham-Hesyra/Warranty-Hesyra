@@ -45,12 +45,19 @@ test('?view=card cannot open a card without signing in', async ({ page }) => {
   await expect(page.locator('#form-view-section')).toBeVisible();
 });
 
-test('nothing is written to localStorage', async ({ page }) => {
+test('device remembers card in localStorage and opens it directly on next visit', async ({ page }) => {
   await page.goto('/?id=ZIR-4510');
   await expect(page.locator('#step2-section')).toBeVisible();
   await registerAs(page);
   await expect(page.locator('#card-view-section')).toBeVisible();
-  expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hesyra_warranty_device_card_v1') || '{}'));
+  expect(saved.crown?.crownId).toBe('ZIR-4510');
+  expect(JSON.stringify(saved)).not.toContain('9822011111');
+
+  await page.goto('/');
+  await expect(page.locator('#card-view-section')).toBeVisible();
+  await expect(page.locator('#form-view-section')).toBeHidden();
 });
 
 // --------------------------------------------------------------- crown ID entry
@@ -417,22 +424,16 @@ test('print stylesheet renders both faces at ID-card size', async ({ page }) => 
   expect(faces).toEqual(['relative', 'relative']);
 });
 
-test('reloading keeps the card open; sign out clears it', async ({ page }) => {
+test('reloading keeps the card open; no sign out or packaging buttons exist', async ({ page }) => {
   await page.goto('/?id=ZIR-4510');
   await registerAs(page);
   await expect(page.locator('#card-view-section')).toBeVisible();
   await page.reload();
   await expect(page.locator('#card-view-section')).toBeVisible();
   await expect(page.locator('#card-patient')).toHaveText('MEERA JOSHI');
-  const stored = await page.evaluate(() => JSON.stringify(sessionStorage));
-  expect(stored).not.toContain('9822011111');
-
-  await page.click('#sign-out-btn');
-  await expect(page.locator('#form-view-section')).toBeVisible();
-  await expect(page.locator('#crown-id-input')).toHaveValue('');
-  expect(page.url()).not.toContain('id=');
-  await page.reload();
-  await expect(page.locator('#card-view-section')).toBeHidden();
+  
+  await expect(page.locator('#sign-out-btn')).toHaveCount(0);
+  await expect(page.locator('#dash-qr-btn')).toHaveCount(0);
 });
 
 test('a QR link for a different crown does not reuse the open session', async ({ page }) => {
