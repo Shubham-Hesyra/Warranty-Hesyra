@@ -52,6 +52,7 @@
     dashIssued: $('dash-issued-date'),
     dashUntil: $('dash-until-date'),
     downloadPdf: $('download-pdf-btn'),
+    dashQrBtn: $('dash-qr-btn'),
     signOut: $('sign-out-btn'),
     tabRegister: $('tab-register-btn'),
     tabLogin: $('tab-login-btn'),
@@ -618,6 +619,7 @@
     el.statusLabel.textContent = expired ? 'Warranty expired' : 'Warranty active';
     el.statusTag.textContent = expired ? `Ended ${fmtLong(c.expiryDate)}` : 'Verified genuine';
     el.statusDot.style.background = expired ? '#f59e0b' : '#C1E8FF';
+    if (el.dashQrBtn && c.crownId) el.dashQrBtn.href = 'qr.html?id=' + encodeURIComponent(c.crownId);
     el.statusDot.style.animation = expired ? 'none' : '';
   }
 

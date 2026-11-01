@@ -12,7 +12,7 @@ const { fixtureRows } = require('./fixtures');
 
 const ROOT = path.join(__dirname, '..', '..');
 const PORT = Number(process.env.PORT || 4173);
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.css': 'text/css' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.css': 'text/css', '.svg': 'image/svg+xml' };
 
 let gas;
 let requests = [];

@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; form-action 'none'; base-uri 'self'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Hesyra Labs — Custom QR Code Generator & Dental Packaging Label Studio">
+  <meta name="theme-color" content="#021024">
+  <title>Hesyra Labs — Custom QR &amp; Packaging Label Studio</title>
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    :root {
+      --bg-dark: #021024;
+      --navy-deep: #052659;
+      --blue-mid: #5483B3;
+      --blue-soft: #7DA0CA;
+      --blue-ice: #C1E8FF;
+      --white-pure: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #021024;
+      font-family: 'Inter', sans-serif;
+      color: var(--blue-ice);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+    a { color: var(--blue-ice); text-decoration: none; }
+    a:hover { color: #ffffff; text-decoration: underline; }
+
+    /* Layout Containers */
+    .studio-container {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      box-sizing: border-box;
+      width: 100%;
+    }
+    .grid-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+      width: 100%;
+    }
+    @media (max-width: 860px) {
+      .grid-layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+    @media (max-width: 600px) {
+      .studio-container { padding: 14px 10px 48px; }
+      .glass-card { padding: 16px 12px; border-radius: 14px; }
+      .tab-btn { padding: 8px 4px; font-size: 11px; }
+      .pill-grid { grid-template-columns: minmax(0, 1fr) !important; }
+    }
+
+    /* Glass Panels */
+    .glass-card {
+      background: rgba(2, 16, 36, 0.65);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(193, 232, 255, 0.15);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 16px 36px -12px rgba(2, 16, 36, 0.7);
+      box-sizing: border-box;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    /* Form Controls */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+      min-width: 0;
+    }
+    label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--blue-soft);
+    }
+    input[type="text"], textarea, select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 14px;
+      background: rgba(2, 16, 36, 0.85);
+      border: 1px solid rgba(193, 232, 255, 0.22);
+      border-radius: 10px;
+      color: #F2FAFF;
+      font-family: 'Inter', sans-serif;
+      font-size: 13.5px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input[type="text"]:focus, textarea:focus, select:focus {
+      border-color: var(--blue-mid);
+      box-shadow: 0 0 0 3px rgba(84, 131, 179, 0.25);
+    }
+    .input-mono {
+      font-family: 'JetBrains Mono', monospace !important;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+
+    /* Tab switcher */
+    .tab-bar {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      background: rgba(2, 16, 36, 0.8);
+      padding: 3px;
+      border-radius: 11px;
+      border: 1px solid rgba(193, 232, 255, 0.14);
+      margin-bottom: 20px;
+      box-sizing: border-box;
+    }
+    .tab-btn {
+      min-width: 0;
+      padding: 8px 8px;
+      border-radius: 8px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 11.5px;
+      font-weight: 600;
+      border: none;
+      background: transparent;
+      color: var(--blue-soft);
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tab-btn[aria-selected="true"] {
+      background: var(--blue-ice);
+      color: #021024;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+
+    /* Option Pills Grid */
+    .pill-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 8px;
+      box-sizing: border-box;
+    }
+    .pill-btn {
+      min-width: 0;
+      box-sizing: border-box;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(193, 232, 255, 0.18);
+      background: rgba(5, 38, 89, 0.35);
+      color: #E8F6FF;
+      font-size: 11.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .pill-btn:hover {
+      background: rgba(84, 131, 179, 0.3);
+    }
+    .pill-btn[aria-checked="true"] {
+      border-color: var(--blue-ice);
+      background: rgba(193, 232, 255, 0.18);
+      color: #ffffff;
+      box-shadow: 0 0 0 1px var(--blue-ice);
+    }
+
+    /* Buttons */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 18px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #C1E8FF 0%, #7DA0CA 100%);
+      color: #021024;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 14px rgba(5, 38, 89, 0.4);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(193, 232, 255, 0.3);
+    }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 16px;
+      border-radius: 12px;
+      background: rgba(5, 38, 89, 0.5);
+      border: 1px solid rgba(193, 232, 255, 0.2);
+      color: var(--blue-ice);
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover {
+      background: rgba(84, 131, 179, 0.25);
+      color: #ffffff;
+      border-color: var(--blue-ice);
+    }
+
+    /* Packaging Sticker Preview Styles */
+    .preview-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      min-height: 400px;
+      padding: 24px;
+      background: radial-gradient(circle at 50% 20%, rgba(84, 131, 179, 0.15) 0%, rgba(2, 16, 36, 0.95) 70%);
+      border-radius: 16px;
+      border: 1px dashed rgba(193, 232, 255, 0.2);
+    }
+    
+    /* Box Sticker: Standard 50mm x 30mm (5:3 aspect ratio) */
+    .dental-sticker-50x30 {
+      width: min(100%, 420px);
+      aspect-ratio: 50 / 30;
+      background: #ffffff;
+      border-radius: 8px;
+      color: #021024;
+      padding: 14px 18px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      position: relative;
+    }
+    .dental-sticker-50x30 .sticker-qr {
+      width: 36%;
+      aspect-ratio: 1 / 1;
+      flex: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .dental-sticker-50x30 .sticker-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+      min-width: 0;
+    }
+
+    /* Square Sticker: 40mm x 40mm */
+    .dental-sticker-40x40 {
+      width: min(100%, 340px);
+      aspect-ratio: 1 / 1;
+      background: #ffffff;
+      border-radius: 8px;
+      color: #021024;
+      padding: 16px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      text-align: center;
+    }
+    .dental-sticker-40x40 .sticker-qr {
+      width: 62%;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Credit Card / Certificate: 85.6mm x 54mm */
+    .dental-sticker-card {
+      width: min(100%, 440px);
+      aspect-ratio: 85.6 / 54;
+      background: #ffffff;
+      border-radius: 12px;
+      color: #021024;
+      padding: 22px 26px;
+      box-shadow: 0 14px 34px rgba(0,0,0,0.45);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .studio-container {
+        padding: 0 !important;
+        max-width: none !important;
+      }
+      .preview-stage {
+        background: none !important;
+        border: none !important;
+        padding: 0 !important;
+      }
+      .dental-sticker-50x30, .dental-sticker-40x40, .dental-sticker-card {
+        box-shadow: none !important;
+        border: 0.5pt dashed #ccc !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .batch-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8mm !important;
+        padding: 8mm !important;
+      }
+    }
+    .hidden { display: none !important; }
+  </style>
+  <script src="assets/qrcode.js" defer></script>
+  <script src="assets/hesyra-qr.js" defer></script>
+  <script src="qr.js" defer></script>
+</head>
+<body>
+
+<div style="min-height: 100svh; background: linear-gradient(180deg, #C1E8FF 0%, #7DA0CA 22%, #5483B3 40%, #052659 66%, #021024 100%); padding-bottom: 40px">
+
+  <div class="studio-container">
+
+    <!-- Top Masthead / Navigation -->
+    <header class="no-print" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0 8px">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <a href="index.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none">
+          <img src="assets/logo.png" alt="Hesyra Labs" style="width: 26px; height: 26px; object-fit: contain">
+          <span style="font-family: 'Montserrat', sans-serif; font-size: 13px; letter-spacing: 0.18em; color: #021024">
+            <span style="font-weight: 400">HESYRA</span> <span style="font-weight: 700">LABS</span>
+          </span>
+        </a>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <a href="index.html" class="btn-secondary" style="padding: 7px 14px; font-size: 11.5px; background: rgba(2,16,36,0.3); border-color: rgba(2,16,36,0.25); color: #021024">
+          &larr; Back to Warranty Portal
+        </a>
+      </div>
+    </header>
+
+    <!-- Page Title Banner -->
+    <div class="no-print" style="margin-bottom: 4px">
+      <h1 style="font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 24px; color: #021024; margin: 0 0 6px">
+        Custom QR &amp; Packaging Label Studio
+      </h1>
+      <p style="margin: 0; font-size: 13px; color: #052659; max-width: 640px; line-height: 1.5">
+        Generate branded, high-contrast QR codes and dental crown packaging box labels. Encodes direct verification URLs into Hesyra signature navy with embedded center insignia.
+      </p>
+    </div>
+
+    <!-- Main Studio Grid -->
+    <div class="grid-layout">
+
+      <!-- LEFT COLUMN: CONTROLS -->
+      <div class="glass-card no-print">
+
+        <!-- Mode Tabs -->
+        <div class="tab-bar" role="tablist">
+          <button type="button" id="tab-single" class="tab-btn" role="tab" aria-selected="true">Single Crown</button>
+          <button type="button" id="tab-general" class="tab-btn" role="tab" aria-selected="false">Website QR</button>
+          <button type="button" id="tab-batch" class="tab-btn" role="tab" aria-selected="false">Batch Sheet</button>
+        </div>
+
+        <!-- PANEL 1: SINGLE CROWN ID -->
+        <div id="panel-single">
+          <div class="form-group">
+            <label for="input-crown-id">Crown / Restoration ID</label>
+            <input type="text" id="input-crown-id" class="input-mono" placeholder="e.g. ZIR-4510 or CER-8942" value="ZIR-4510" maxlength="15" autocomplete="off" spellcheck="false">
+            <span style="font-size: 11px; color: var(--blue-soft); margin-top: 2px">Direct URL: <span id="label-target-url" style="color: #ffffff; word-break: break-all">https://warranty-hesyra.onrender.com/?id=ZIR-4510</span></span>
+          </div>
+
+          <div class="form-group">
+            <label for="input-material">Restoration Type (Optional)</label>
+            <input type="text" id="input-material" placeholder="e.g. Zirconia Multi-Layer 3D Pro" value="Zirconia Multi-Layer 3D Pro">
+          </div>
+
+          <div class="form-group">
+            <label for="input-dentist">Doctor / Clinic (Optional)</label>
+            <input type="text" id="input-dentist" placeholder="e.g. Dr Aarav Deshmukh" value="Smile Studio Dental Care">
+          </div>
+        </div>
+
+        <!-- PANEL 2: GENERAL WEBSITE -->
+        <div id="panel-general" class="hidden">
+          <div class="form-group">
+            <label for="input-general-url">Website Destination URL</label>
+            <input type="text" id="input-general-url" value="https://warranty-hesyra.onrender.com/" placeholder="https://warranty-hesyra.onrender.com/">
+            <span style="font-size: 11px; color: var(--blue-soft); margin-top: 2px">Ideal for clinic counter displays, marketing leaflets, and lab catalogs.</span>
+          </div>
+        </div>
+
+        <!-- PANEL 3: BATCH PRINT -->
+        <div id="panel-batch" class="hidden">
+          <div class="form-group">
+            <label for="input-batch-ids">Multiple Crown IDs (one per line or comma-separated)</label>
+            <textarea id="input-batch-ids" rows="5" class="input-mono" placeholder="ZIR-4510&#10;CER-8942&#10;EMX-1001&#10;ZIR-2002">ZIR-4510&#10;CER-8942&#10;EMX-1001</textarea>
+            <span style="font-size: 11px; color: var(--blue-soft); margin-top: 2px">Outputs a print-ready sticker grid for daily lab dispatch runs.</span>
+          </div>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid rgba(193, 232, 255, 0.12); margin: 20px 0">
+
+        <!-- Label / Sticker Format Selector -->
+        <div class="form-group">
+          <label>Sticker &amp; Packaging Format</label>
+          <div class="pill-grid">
+            <button type="button" class="pill-btn format-pill" data-format="50x30" aria-checked="true">
+              <span><strong>50 × 30 mm</strong> (Box Sticker)</span>
+            </button>
+            <button type="button" class="pill-btn format-pill" data-format="40x40" aria-checked="false">
+              <span><strong>40 × 40 mm</strong> (Square)</span>
+            </button>
+            <button type="button" class="pill-btn format-pill" data-format="card" aria-checked="false">
+              <span><strong>85 × 54 mm</strong> (Card / Cert)</span>
+            </button>
+            <button type="button" class="pill-btn format-pill" data-format="qr-only" aria-checked="false">
+              <span><strong>QR Code Only</strong> (Clean)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Styling Options -->
+        <div class="form-group">
+          <label>Brand Palette &amp; Style</label>
+          <div class="pill-grid">
+            <button type="button" class="pill-btn color-pill" data-color="#052659" aria-checked="true">
+              <span style="width: 12px; height: 12px; border-radius: 50%; background: #052659; border: 1px solid #fff"></span>
+              <span>Signature Navy</span>
+            </button>
+            <button type="button" class="pill-btn color-pill" data-color="#021024" aria-checked="false">
+              <span style="width: 12px; height: 12px; border-radius: 50%; background: #021024; border: 1px solid #fff"></span>
+              <span>Midnight Slate</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0">
+          <label>QR Elements</label>
+          <div style="display: flex; gap: 12px; margin-top: 4px">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; text-transform: none; color: #E8F6FF">
+              <input type="checkbox" id="check-logo" checked> Hesyra Center Badge
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; text-transform: none; color: #E8F6FF">
+              <input type="checkbox" id="check-rounded" checked> Rounded Dots
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: LIVE PREVIEW & EXPORT ACTIONS -->
+      <div class="glass-card" style="display: flex; flex-direction: column; gap: 20px">
+
+        <div class="no-print" style="display: flex; justify-content: space-between; align-items: center">
+          <span style="font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 15px; color: #F2FAFF">
+            Live Packaging Label Preview
+          </span>
+          <span id="preview-badge" style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--blue-soft); background: rgba(5,38,89,0.5); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(193,232,255,0.15)">
+            50 × 30 mm Standard Box Label
+          </span>
+        </div>
+
+        <!-- PREVIEW CANVAS STAGE -->
+        <div id="preview-stage" class="preview-stage">
+          
+          <!-- STICKER PREVIEW 1: Standard 50x30 mm -->
+          <div id="sticker-preview-50x30" class="dental-sticker-50x30">
+            <div class="sticker-qr" id="box-qr-slot-50x30">
+              <!-- Dynamically rendered SVG will be inserted here -->
+            </div>
+            <div class="sticker-info">
+              <div style="display: flex; align-items: center; gap: 6px">
+                <img src="assets/logo.png" alt="" style="width: 14px; height: 14px; object-fit: contain">
+                <span style="font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; color: #021024">HESYRA LABS</span>
+              </div>
+              <div style="margin: 4px 0">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 8px; letter-spacing: 0.15em; text-transform: uppercase; color: #5483B3; display: block">CROWN ID</span>
+                <span id="prev-id-50x30" style="font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 700; color: #052659; letter-spacing: 0.05em">ZIR-4510</span>
+                <span id="prev-mat-50x30" style="font-size: 8.5px; color: #4a5568; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px">Zirconia Multi-Layer 3D Pro</span>
+              </div>
+              <div style="border-top: 1px solid #e2e8f0; padding-top: 3px; display: flex; justify-content: space-between; align-items: flex-end">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 7px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #052659">Scan to activate warranty</span>
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 7px; color: #718096">5-Yr Digital</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- STICKER PREVIEW 2: 40x40 mm Square -->
+          <div id="sticker-preview-40x40" class="dental-sticker-40x40 hidden">
+            <div style="display: flex; align-items: center; gap: 5px">
+              <img src="assets/logo.png" alt="" style="width: 13px; height: 13px; object-fit: contain">
+              <span style="font-family: 'Montserrat', sans-serif; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; color: #021024">HESYRA LABS</span>
+            </div>
+            <div class="sticker-qr" id="box-qr-slot-40x40"></div>
+            <div>
+              <span id="prev-id-40x40" style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: #052659; display: block">ZIR-4510</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 7.5px; text-transform: uppercase; color: #5483B3">Scan to verify &amp; activate</span>
+            </div>
+          </div>
+
+          <!-- STICKER PREVIEW 3: 85.6x54 mm Card / Cert -->
+          <div id="sticker-preview-card" class="dental-sticker-card hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <img src="assets/logo.png" alt="" style="width: 18px; height: 18px; object-fit: contain">
+                <span style="font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; color: #021024">HESYRA LABS</span>
+              </div>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #5483B3">Dental Crown Guarantee</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px; margin: 12px 0">
+              <div style="width: 88px; height: 88px; flex: none" id="box-qr-slot-card"></div>
+              <div style="display: flex; flex-direction: column; gap: 4px">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #718096">CROWN SERIAL ID</span>
+                <span id="prev-id-card" style="font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: #052659">ZIR-4510</span>
+                <span id="prev-mat-card" style="font-size: 11px; color: #2d3748; font-weight: 500">Zirconia Multi-Layer 3D Pro</span>
+                <span id="prev-dentist-card" style="font-size: 10px; color: #4a5568">Smile Studio Dental Care</span>
+              </div>
+            </div>
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 6px; display: flex; justify-content: space-between; font-size: 8px; color: #718096">
+              <span>Scan QR with any phone camera to verify lab authenticity &amp; activate 5-year coverage.</span>
+              <span style="font-family: 'JetBrains Mono', monospace; color: #052659">hesyralabs.com</span>
+            </div>
+          </div>
+
+          <!-- STICKER PREVIEW 4: QR ONLY -->
+          <div id="sticker-preview-qr-only" class="hidden" style="display: flex; flex-direction: column; align-items: center; gap: 12px; background: #ffffff; padding: 24px; border-radius: 12px; box-shadow: 0 10px 28px rgba(0,0,0,0.4)">
+            <div id="box-qr-slot-qr-only" style="width: 240px; height: 240px"></div>
+            <span id="prev-id-qr-only" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: #052659">ZIR-4510</span>
+          </div>
+
+          <!-- BATCH PREVIEW SHEET (WHEN BATCH TAB IS ACTIVE) -->
+          <div id="batch-preview-container" class="hidden" style="width: 100%">
+            <div id="batch-grid" class="batch-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px">
+              <!-- Dynamically populated batch stickers -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- EXPORT & PRINT BUTTON BAR -->
+        <div class="no-print" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; border-top: 1px solid rgba(193,232,255,0.12); padding-top: 16px">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <button type="button" id="btn-print" class="btn-primary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><path d="M6 14h12v8H6z"></path></svg>
+              Print Labels / Sticker Sheet
+            </button>
+            <button type="button" id="btn-download-png" class="btn-secondary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Download PNG (300 DPI)
+            </button>
+            <button type="button" id="btn-download-svg" class="btn-secondary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+              Download SVG
+            </button>
+          </div>
+
+          <a id="btn-test-link" href="https://warranty-hesyra.onrender.com/?id=ZIR-4510" target="_blank" rel="noopener" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--blue-soft); display: flex; align-items: center; gap: 4px">
+            Test scan in browser &rarr;
+          </a>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Hidden Canvas for high-res PNG export -->
+<canvas id="export-canvas" class="hidden"></canvas>
+
+</body>
+</html>
