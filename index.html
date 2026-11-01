@@ -102,12 +102,18 @@
               </div>
               
               <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 4cqw">
-                <div style="display: flex; flex-direction: column; gap: 1.3cqw; min-width: 0">
-                  <span id="card-patient" style="font-family: 'Montserrat', sans-serif; font-weight: 500; font-size: 3cqw; letter-spacing: 0.18em; text-transform: uppercase; color: #E8F6FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56cqw; text-shadow: 0 -0.1cqw 0 rgba(255,255,255,0.25), 0 0.2cqw 0.3cqw rgba(2,16,36,0.9)"></span>
-                  <span id="card-warranty-id" style="font-family: 'JetBrains Mono', monospace; font-size: 2.2cqw; letter-spacing: 0.2em; color: rgba(193,232,255,0.7)"></span>
+                <div style="display: flex; flex-direction: column; gap: 1.4cqw; min-width: 0">
+                  <div style="display: flex; flex-direction: column; gap: 0.4cqw">
+                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.5cqw; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(193,232,255,0.6)">Patient</span>
+                    <span id="card-patient" style="font-family: 'Montserrat', sans-serif; font-weight: 500; font-size: 3cqw; letter-spacing: 0.16em; text-transform: uppercase; color: #E8F6FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56cqw; text-shadow: 0 -0.1cqw 0 rgba(255,255,255,0.25), 0 0.2cqw 0.3cqw rgba(2,16,36,0.9)"></span>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 0.4cqw">
+                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.5cqw; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(193,232,255,0.6)">Certificate No.</span>
+                    <span id="card-warranty-id" style="font-family: 'JetBrains Mono', monospace; font-size: 2.2cqw; letter-spacing: 0.2em; color: rgba(193,232,255,0.75)"></span>
+                  </div>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 1.3cqw; align-items: flex-end; flex: none">
-                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.6cqw; letter-spacing: 0.26em; text-transform: uppercase; color: rgba(193,232,255,0.6)">Valid thru</span>
+                <div style="display: flex; flex-direction: column; gap: 0.4cqw; align-items: flex-end; flex: none">
+                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.5cqw; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(193,232,255,0.6)">Valid thru</span>
                   <span id="card-valid-thru" style="font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 3cqw; letter-spacing: 0.1em; color: #E8F6FF; text-shadow: 0 0.2cqw 0.3cqw rgba(2,16,36,0.9)"></span>
                 </div>
               </div>
@@ -135,16 +141,16 @@
                 <span id="back-shade" style="font-family: 'JetBrains Mono', monospace; font-size: 3cqw; font-weight: 500; color: #E8F6FF"></span>
               </div>
               <div style="display: flex; flex-direction: column; gap: 0.7cqw">
-                <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.7cqw; letter-spacing: 0.2em; text-transform: uppercase; color: #7DA0CA">Case</span>
-                <span id="back-case" style="font-family: 'JetBrains Mono', monospace; font-size: 3cqw; font-weight: 500; color: #E8F6FF"></span>
-              </div>
-              <div style="grid-column: 1 / 3; display: flex; flex-direction: column; gap: 0.7cqw; min-width: 0">
-                <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.7cqw; letter-spacing: 0.2em; text-transform: uppercase; color: #7DA0CA">Fitted by</span>
-                <span id="back-dentist" style="font-family: 'Montserrat', sans-serif; font-size: 3cqw; font-weight: 600; color: #E8F6FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis"></span>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 0.7cqw">
                 <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.7cqw; letter-spacing: 0.2em; text-transform: uppercase; color: #7DA0CA">Issued</span>
                 <span id="back-issued" style="font-family: 'JetBrains Mono', monospace; font-size: 3cqw; font-weight: 500; color: #E8F6FF"></span>
+              </div>
+              <div style="grid-column: 1 / 3; display: flex; flex-direction: column; gap: 0.7cqw; min-width: 0">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.7cqw; letter-spacing: 0.2em; text-transform: uppercase; color: #7DA0CA">Clinic</span>
+                <span id="back-clinic" style="font-family: 'Montserrat', sans-serif; font-size: 2.8cqw; font-weight: 600; color: #E8F6FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis"></span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.7cqw; min-width: 0">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.7cqw; letter-spacing: 0.2em; text-transform: uppercase; color: #7DA0CA">Fitted by</span>
+                <span id="back-dentist" style="font-family: 'Montserrat', sans-serif; font-size: 2.8cqw; font-weight: 600; color: #E8F6FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis"></span>
               </div>
               <div style="grid-column: 1 / 4; align-self: end; display: flex; justify-content: space-between; align-items: flex-end; gap: 3cqw; padding-top: 2.4cqw; border-top: 0.2cqw solid rgba(193,232,255,0.14)">
                 <span style="font-size: 1.9cqw; line-height: 1.5; color: #7DA0CA; max-width: 62%">Present this card with any warranty claim. Valid only for the restoration and patient named.</span>

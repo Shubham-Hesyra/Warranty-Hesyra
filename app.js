@@ -39,7 +39,8 @@
     cardValidThru: $('card-valid-thru'),
     backTooth: $('back-tooth'),
     backShade: $('back-shade'),
-    backCase: $('back-case'),
+    backClinic: $('back-clinic'),
+    backCase: $('back-clinic') || $('back-case'),
     backDentist: $('back-dentist'),
     backIssued: $('back-issued'),
     statusDot: $('status-dot'),
@@ -596,7 +597,9 @@
 
     el.backTooth.textContent = c.tooth || '—';
     el.backShade.textContent = c.shade || '—';
-    el.backCase.textContent = c.caseRef || '—';
+    const clinicText = c.clinic || '—';
+    if (el.backClinic) el.backClinic.textContent = clinicText;
+    if (el.backCase && el.backCase !== el.backClinic) el.backCase.textContent = clinicText;
     el.backDentist.textContent = c.dentist || '—';
     el.backIssued.textContent = fmtShort(c.dispatchDate) || '—';
 

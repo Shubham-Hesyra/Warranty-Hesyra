@@ -401,7 +401,7 @@ test('card flips by tap and by keyboard', async ({ page }) => {
   await page.locator('#stage').focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#flipper')).toHaveAttribute('style', /rotateY\(0deg\)/);
-  await expect(page.locator('#back-case')).toHaveText('JOB-1042');
+  await expect(page.locator('#back-clinic')).toHaveText('Smile Studio Dental Care, Nagpur');
 });
 
 test('Download card as PDF opens the print dialog with a named file', async ({ page }) => {
