@@ -49,6 +49,19 @@ var MAX_FAILED_LOGINS = 5;
 var LOCKOUT_SECONDS = 15 * 60;
 var DEFAULT_WARRANTY_YEARS = 5;
 
+/**
+ * Standard Hesyra laboratory warranty duration:
+ * - Zirconia restorations: 7 Years
+ * - Ceramic restorations (Ceramic-Hybrid, E.max, Feldspathic): 5 Years
+ */
+function defaultWarrantyYearsForMaterial(material) {
+  var m = String(material || "").toLowerCase();
+  if (m.indexOf("zirconia") !== -1 || m.indexOf("zir") !== -1) {
+    return 7;
+  }
+  return 5;
+}
+
 // 1-based column numbers
 var COL = {
   ID: 1, STATUS: 2, DISPATCH: 3, YEARS: 4, EXPIRY: 5, DELIVERY: 6,
@@ -309,12 +322,13 @@ function handleOpsUpdate(payload) {
       for (var i = 0; i < NUM_COLS; i++) row.push("");
       row[COL.ID - 1] = asText(id);
       row[COL.STATUS - 1] = "In Production";
-      row[COL.YEARS - 1] = DEFAULT_WARRANTY_YEARS;
+      row[COL.YEARS - 1] = defaultWarrantyYearsForMaterial(payload.material);
     }
 
     if (status) row[COL.STATUS - 1] = status;
     if (dispatchDate) row[COL.DISPATCH - 1] = dispatchDate;
     if (yearsGiven) row[COL.YEARS - 1] = years;
+    else if (payload.material) row[COL.YEARS - 1] = defaultWarrantyYearsForMaterial(row[COL.MATERIAL - 1]);
     if (deliveryDate) row[COL.DELIVERY - 1] = deliveryDate;
     for (var col in fields) {
       if (fields[col] !== undefined && fields[col] !== null && fields[col] !== "") {
@@ -332,7 +346,7 @@ function handleOpsUpdate(payload) {
       if (!explicitExpiry) return fail(ERR.INVALID_INPUT, "expiryDate must be YYYY-MM-DD.");
       row[COL.EXPIRY - 1] = explicitExpiry;
     } else if (effectiveDispatch) {
-      row[COL.EXPIRY - 1] = computeExpiryDate(effectiveDispatch, parseInt(row[COL.YEARS - 1], 10) || DEFAULT_WARRANTY_YEARS);
+      row[COL.EXPIRY - 1] = computeExpiryDate(effectiveDispatch, parseInt(row[COL.YEARS - 1], 10) || defaultWarrantyYearsForMaterial(row[COL.MATERIAL - 1]));
     }
 
     row = row.map(formulaSafe);
@@ -363,11 +377,11 @@ function handleOpsUpdate(payload) {
 function readCrown(r) {
   var tz = sheetTimeZone();
   var id = cleanId(r[COL.ID - 1]);
+  var product = str(r[COL.MATERIAL - 1]);
   var years = parseInt(r[COL.YEARS - 1], 10);
-  if (isNaN(years) || years <= 0) years = DEFAULT_WARRANTY_YEARS;
+  if (isNaN(years) || years <= 0) years = defaultWarrantyYearsForMaterial(product);
   var dispatchDate = normalizeDate(r[COL.DISPATCH - 1], tz);
   var expiryDate = normalizeDate(r[COL.EXPIRY - 1], tz) || (dispatchDate ? computeExpiryDate(dispatchDate, years) : "");
-  var product = str(r[COL.MATERIAL - 1]);
   var tier = str(r[COL.TIER - 1]);
 
   return {
@@ -465,7 +479,7 @@ function seedDemoCases() {
   }
   var blank = ["", "", "", "", "", "", "", "", "", ""];
   var rows = [
-    ["ZIR-4510", "Dispatched", "2026-08-19", 5, "2031-08-19", "2026-08-21", "Zirconia Crown", "Multi-Layer 3D Pro", "16, 17", "A2", "Smile Studio Dental Care, Nagpur", "Dr Aarav Deshmukh", "JOB-1042", "Batch-A8 · Passed QA"].concat(blank),
+    ["ZIR-4510", "Dispatched", "2026-08-19", 7, "2033-08-19", "2026-08-21", "Zirconia Crown", "Multi-Layer 3D Pro", "16, 17", "A2", "Smile Studio Dental Care, Nagpur", "Dr Aarav Deshmukh", "JOB-1042", "Batch-A8 · Passed QA"].concat(blank),
     ["CER-8942", "Delivered", "2026-08-19", 5, "2031-08-19", "2026-08-21", "Ceramic Crown", "Ceramic-Hybrid Prime", "36", "B1", "Apex Dental Care, Mumbai", "Dr Sarah Jenkins", "JOB-1088", "Passed QA",
       "JANE DOE", "'9822012345", "jane.doe@example.com", "2026-08-25 10:00:00", "Mumbai", "Maharashtra", "India", "203.0.113.19", "AGREED - v1.0 [T&C + Privacy Policy] @ 2026-08-25 10:00:00", "2026-08-25 10:00:00"],
     ["EMX-1001", "Dispatched", "2026-10-01", 5, "2031-10-01", "2026-10-03", "E.max Crown", "Lithium Disilicate", "11", "BL2", "Prime Aesthetics, Delhi", "Dr Arthur Miller", "JOB-1102", ""].concat(blank),
@@ -493,10 +507,17 @@ function onEdit(e) {
     if (lastRow < 2 || lastCol < COL.STATUS || firstCol > COL.YEARS) return;
 
     for (var row = firstRow; row <= lastRow; row++) {
-      var vals = sheet.getRange(row, COL.STATUS, 1, 3).getValues()[0]; // status, dispatch, years
-      var dispatch = normalizeDate(vals[1], tz);
-      var years = parseInt(vals[2], 10) || DEFAULT_WARRANTY_YEARS;
-      if (!dispatch && /dispatched|delivered/i.test(String(vals[0]))) {
+      var vals = sheet.getRange(row, 1, 1, Math.max(COL.MATERIAL, lastCol)).getValues()[0];
+      var status = vals[COL.STATUS - 1];
+      var dispatch = normalizeDate(vals[COL.DISPATCH - 1], tz);
+      var yearsCell = vals[COL.YEARS - 1];
+      var material = String(vals[COL.MATERIAL - 1] || "");
+      var years = parseInt(yearsCell, 10);
+      if (isNaN(years) || years <= 0) {
+        years = defaultWarrantyYearsForMaterial(material);
+        sheet.getRange(row, COL.YEARS).setValue(years);
+      }
+      if (!dispatch && /dispatched|delivered/i.test(String(status))) {
         dispatch = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd");
         sheet.getRange(row, COL.DISPATCH).setValue(dispatch);
       }

@@ -1,6 +1,6 @@
 {
   "name": "hesyra-warranty",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "private": true,
   "description": "Hesyra Labs digital dental crown warranty portal (static site + Google Apps Script backend)",
   "scripts": {

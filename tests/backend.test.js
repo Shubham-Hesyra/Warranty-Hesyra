@@ -57,7 +57,8 @@ test('lookup of an unregistered dispatched case returns public details only', ()
   assert.equal(res.isRegistered, false);
   assert.equal(res.crown.crownId, 'ZIR-4510');
   assert.equal(res.crown.dispatchDate, RECENT);
-  assert.equal(res.crown.expiryDate, plusYears(RECENT, 5));
+  assert.equal(res.crown.warrantyYears, 7);
+  assert.equal(res.crown.expiryDate, plusYears(RECENT, 7));
   assert.equal(res.crown.materialFull, 'Zirconia Crown · Multi-Layer 3D Pro');
   assert.equal(res.crown.warrantyId, `HLW ZIR 4510 ${RECENT.slice(2, 4)}${RECENT.slice(5, 7)}`);
   for (const k of PII_KEYS) assert.ok(!deepKeys(res).includes(k), `lookup leaked ${k}`);
@@ -309,7 +310,7 @@ test('onEdit recomputes expiry for single and pasted multi-row edits', () => {
   sh.write(2, 3, '2026-03-01');
   sh.write(3, 4, 2);
   gas.ctx.onEdit({ range: sh.getRange(2, 3, 2, 2) });
-  assert.equal(gas.ctx.normalizeDate(gas.row('ZIR-4510')[4]), '2031-03-01');
+  assert.equal(gas.ctx.normalizeDate(gas.row('ZIR-4510')[4]), '2033-03-01');
   assert.equal(gas.ctx.normalizeDate(gas.row('EMX-1001')[4]), plusYears(gas.ctx.normalizeDate(gas.row('EMX-1001')[2]), 2));
 });
 

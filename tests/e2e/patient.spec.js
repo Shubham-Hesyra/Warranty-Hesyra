@@ -128,7 +128,7 @@ test('happy path: register and see the correct warranty card', async ({ page, re
   await expect(page.locator('#card-meta')).toHaveText(`Teeth 16, 17 · Shade A2 · ${RECENT.slice(0, 4)}`);
   const stamp = RECENT.slice(2, 4) + RECENT.slice(5, 7);
   await expect(page.locator('#card-warranty-id')).toHaveText(`HLW ZIR 4510 ${stamp}`);
-  const exp = plusYears(RECENT, 5);
+  const exp = plusYears(RECENT, 7);
   await expect(page.locator('#card-valid-thru')).toHaveText(`${exp.slice(5, 7)} / ${exp.slice(2, 4)}`);
   await expect(page.locator('#status-label')).toHaveText('Warranty active');
   await expect(page.locator('#dash-until-date')).toHaveText(`Until ${longDate(exp)}`);
