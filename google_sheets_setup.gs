@@ -141,7 +141,7 @@ function route(action, data) {
 function handleLookup(data) {
   var id = cleanId(data.id || data.caseId);
   if (!isValidCaseId(id)) {
-    return fail(ERR.INVALID_INPUT, "Crown IDs look like ZIR-4510. Please check the label on your box.");
+    return fail(ERR.INVALID_INPUT, "Crown IDs look like W26-004817 or ZIR-4510. Please check the label on your box.");
   }
 
   var sheet = getMasterSheet();
@@ -283,7 +283,7 @@ function handleOpsUpdate(payload) {
   }
 
   var id = cleanId(payload.id || payload.caseId);
-  if (!isValidCaseId(id)) return fail(ERR.INVALID_INPUT, "Case ID must look like ZIR-4510.");
+  if (!isValidCaseId(id)) return fail(ERR.INVALID_INPUT, "Case ID must look like W26-004817 or ZIR-4510.");
 
   var tz = sheetTimeZone();
   var dispatchDate = payload.dispatchDate || payload.dispatchedAt ? normalizeDate(payload.dispatchDate || payload.dispatchedAt, tz) : "";
@@ -616,8 +616,9 @@ function cleanId(val) {
   return str(val).toUpperCase().replace(/\s+/g, "");
 }
 
+// ZIR-4510 (until Nov 2026) or W26-004817 (the lab's code system since v2.8.0)
 function isValidCaseId(id) {
-  return /^[A-Z]{3}-\d{4}$/.test(id);
+  return /^(?:[A-Z]{3}-\d{4}|W\d{2}-\d{6})$/.test(id);
 }
 
 function cleanPhone(val) {

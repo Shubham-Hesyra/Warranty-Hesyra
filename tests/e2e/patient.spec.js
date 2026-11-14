@@ -98,7 +98,7 @@ test('unknown ID shows a clear not-found message and no form', async ({ page }) 
 test('malformed ID explains the expected format', async ({ page }) => {
   await page.goto('/');
   await typeId(page, '1234567');
-  await expect(page.locator('#id-hint')).toContainText('three letters, then four numbers');
+  await expect(page.locator('#id-hint')).toContainText('look like W26-004817 or ZIR-4510');
 });
 
 test('a crown still in production cannot be registered', async ({ page }) => {
@@ -387,8 +387,8 @@ test('expired warranty is labelled as expired', async ({ page }) => {
   await page.fill('#login-phone-input', '9000000001');
   await page.click('#login-submit-btn');
   await expect(page.locator('#status-label')).toHaveText('Warranty expired');
-  await expect(page.locator('#status-tag')).toHaveText('Ended 10 Jan 2023');
-  await expect(page.locator('#card-valid-thru')).toHaveText('01 / 23');
+  await expect(page.locator('#status-tag')).toHaveText('Ended 10 Jan 2025');  // zirconia: 7 years since v2.5.0
+  await expect(page.locator('#card-valid-thru')).toHaveText('01 / 25');
 });
 
 test('card flips by tap and by keyboard', async ({ page }) => {
@@ -496,4 +496,12 @@ test('page loads with no console errors and no CSP violations', async ({ page })
   await registerAs(page);
   await expect(page.locator('#card-view-section')).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('a W26-004817 card ID is typed and formatted like the box label (v2.8.0)', async ({ page }) => {
+  await page.goto('/');
+  await typeId(page, 'w26004817');
+  await expect(page.locator('#crown-id-input')).toHaveValue('W26-004817');
+  await page.goto('/?id=w26-004817');
+  await expect(page.locator('#crown-id-input')).toHaveValue('W26-004817');
 });

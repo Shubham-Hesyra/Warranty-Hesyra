@@ -14,7 +14,8 @@
   const SESSION_KEY = 'hesyra_warranty_device_card_v1';
   const SESSION_TTL_MS = (CFG.sessionMinutes || 30) * 60 * 1000;
   const CONSENT_VERSION = 'v1.0';
-  const ID_RE = /^[A-Z]{3}-\d{4}$/;
+  // ZIR-4510 (until Nov 2026) or W26-004817 (the lab's code system since v2.8.0: W, the year, six digits)
+  const ID_RE = /^(?:[A-Z]{3}-\d{4}|W\d{2}-\d{6})$/;
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const MSG = {
     NETWORK: 'We couldn’t reach the warranty registry. Check your internet connection and try again.',
@@ -137,6 +138,8 @@
     const fromUrl = v.match(/[?&]id=([^&#\s]+)/i);
     if (fromUrl) v = decodeURIComponent(fromUrl[1]);
     v = v.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    // W26-004817: W and two digits, then six digits
+    if (/^W\d/.test(v)) return (v.length > 3 ? v.slice(0, 3) + '-' + v.slice(3, 9) : v).slice(0, 10);
     if (v.length > 3) v = v.slice(0, 3) + '-' + v.slice(3, 7);
     return v.slice(0, 8);
   }
@@ -359,7 +362,7 @@
 
     if (!ID_RE.test(id)) {
       if (id.length >= 8 || (id.length >= 4 && !/^[A-Z]{3}/.test(id))) {
-        setHint('Crown IDs look like ZIR-4510 — three letters, then four numbers.', 'error');
+        setHint('Crown IDs look like W26-004817 or ZIR-4510, as printed on your box.', 'error');
         el.crownId.setAttribute('aria-invalid', 'true');
       } else {
         setHint('Printed on the packaging label of your crown (sample: ZIR-4510).', 'info');
@@ -808,8 +811,9 @@
     const idParam = formatCrownId(params.get('id') || '');
     const savedCard = loadSession();
 
-    // If device already has a registered warranty card, open it directly
-    if (savedCard) {
+    // If device already has a registered warranty card, open it directly, unless the link is for another crown
+    // (a second crown's QR scanned on the same phone opens that crown, not the saved card)
+    if (savedCard && (!idParam || idParam === savedCard.crownId)) {
       openCard(savedCard);
       return;
     }

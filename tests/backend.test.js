@@ -330,3 +330,17 @@ test('seedDemoCases refuses to touch a registry that already has data', () => {
   gas.load([]);
   assert.match(gas.ctx.seedDemoCases(), /Seeded 4/);
 });
+
+// ---------------------------------------------------------------- the lab's code system (v2.8.0)
+test('W26-004817 cards: valid, created by ops_update, found by lookup; ZIR-4510 still works', () => {
+  const gas = setup();
+  assert.equal(gas.get({ action: 'lookup', id: 'W26-000001' }).code, 'NOT_FOUND');
+  assert.equal(gas.get({ action: 'lookup', id: 'W26-00001' }).code, 'INVALID_INPUT');
+  assert.equal(gas.get({ action: 'lookup', id: 'W2-6004817' }).code, 'INVALID_INPUT');
+  const res = gas.post({ action: 'ops_update', token: 'test-ops-token-123', id: 'W26-004817', dispatchStatus: 'Dispatched', dispatchDate: '2026-11-14', warrantyYears: 7, material: 'Zirconia Crown' });
+  assert.equal(res.success, true, JSON.stringify(res));
+  assert.equal(res.created, true);
+  assert.equal(res.crown.expiryDate, '2033-11-14');
+  assert.equal(gas.get({ action: 'lookup', id: 'W26-004817' }).success, true);
+  assert.equal(gas.get({ action: 'lookup', id: 'ZIR-4510' }).success, true);
+});
