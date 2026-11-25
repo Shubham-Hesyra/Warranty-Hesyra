@@ -344,3 +344,47 @@ test('W26-004817 cards: valid, created by ops_update, found by lookup; ZIR-4510 
   assert.equal(gas.get({ action: 'lookup', id: 'W26-004817' }).success, true);
   assert.equal(gas.get({ action: 'lookup', id: 'ZIR-4510' }).success, true);
 });
+
+// ---------------------------------------------------------------- bot check (Turnstile, v2.9.0)
+test('without TURNSTILE_SECRET there is no bot check and nothing is fetched', () => {
+  const gas = setup();
+  assert.equal(register(gas).success, true);
+  assert.equal(gas.fetches.length, 0);
+});
+
+test('with TURNSTILE_SECRET, registering and checking in need a token Cloudflare accepts', () => {
+  const gas = setup();
+  gas.props.set('TURNSTILE_SECRET', 'secret-x');
+  let res = register(gas);
+  assert.equal(res.success, false);
+  assert.equal(res.code, 'BOT_CHECK');
+  assert.equal(gas.fetches.length, 0, 'no token: refused without asking Cloudflare');
+  assert.equal(gas.post({ action: 'verify_login', id: 'CER-8942', phone: '9822012345' }).code, 'BOT_CHECK');
+
+  gas.net.answer = () => ({ code: 200, body: '{"success":false,"error-codes":["invalid-input-response"]}' });
+  res = register(gas, { botToken: 'forged' });
+  assert.equal(res.code, 'BOT_CHECK');
+  assert.equal(gas.fetches[0].url, 'https://challenges.cloudflare.com/turnstile/v0/siteverify');
+  assert.deepEqual(JSON.parse(JSON.stringify(gas.fetches[0].options.payload)), { secret: 'secret-x', response: 'forged' });
+
+  gas.net.answer = () => ({ code: 200, body: '{"success":true}' });
+  res = register(gas, { botToken: 'good' });
+  assert.equal(res.success, true);
+  assert.equal(gas.row('ZIR-4510')[0], 'ZIR-4510');
+});
+
+test('lookup and the lab\'s ops_update never need a bot check', () => {
+  const gas = setup();
+  gas.props.set('TURNSTILE_SECRET', 'secret-x');
+  assert.equal(gas.get({ action: 'lookup', id: 'ZIR-4510' }).success, true);
+  assert.notEqual(gas.post({ action: 'ops_update', token: 'test-ops-token-123', id: 'ZIR-4510', dispatchStatus: 'Dispatched' }).code, 'BOT_CHECK');
+});
+
+test('if Cloudflare cannot be reached, the patient is let through (logged)', () => {
+  const gas = setup();
+  gas.props.set('TURNSTILE_SECRET', 'secret-x');
+  gas.net.answer = () => { throw new Error('DNS error'); };
+  assert.equal(register(gas, { botToken: 't' }).success, true);
+  gas.net.answer = () => ({ code: 503, body: '' });
+  assert.notEqual(gas.post({ action: 'verify_login', id: 'ZIR-4510', phone: '+91 98220 11111', botToken: 't' }).code, 'BOT_CHECK');
+});

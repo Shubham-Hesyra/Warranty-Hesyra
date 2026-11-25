@@ -92,6 +92,7 @@ var ERR = {
   UNAUTHORIZED: "UNAUTHORIZED",
   BUSY: "BUSY",
   UNKNOWN_ACTION: "UNKNOWN_ACTION",
+  BOT_CHECK: "BOT_CHECK",
   SERVER_ERROR: "SERVER_ERROR"
 };
 
@@ -120,6 +121,9 @@ function route(action, data) {
       return jsonResponse({ success: true, status: "active", version: API_VERSION });
     }
     if (action === "lookup") return jsonResponse(handleLookup(data));
+    if ((action === "register" || action === "verify_login") && !passesBotCheck(data)) {
+      return jsonResponse(fail(ERR.BOT_CHECK, "We could not confirm this is a person, not a bot. Please try again."));
+    }
     if (action === "register") return jsonResponse(handleRegister(data));
     if (action === "verify_login") return jsonResponse(handleVerifyLogin(data));
     if (action === "ops_update" || action === "dispatch_update") {
@@ -166,6 +170,37 @@ function handleLookup(data) {
   }
 
   return { success: true, isRegistered: false, crown: publicCrown(crown) };
+}
+
+// ----------------------------------------------------------------------------
+// Bot check (Cloudflare Turnstile, v2.9.0). Registering and checking in need a fresh Turnstile token from the page
+// once the TURNSTILE_SECRET script property is set (Project Settings > Script properties); without it, no check.
+// A token Cloudflare rejects is refused. If Cloudflare cannot be reached, the patient is let through (logged): the
+// phone check and its attempt limit still apply, and an outage elsewhere must not stop a registration.
+// ----------------------------------------------------------------------------
+var TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
+function passesBotCheck(data) {
+  var secret = PropertiesService.getScriptProperties().getProperty("TURNSTILE_SECRET");
+  if (!secret) return true;
+  var token = String((data && data.botToken) || "").slice(0, 2048);
+  if (!token) return false;
+  try {
+    var res = UrlFetchApp.fetch(TURNSTILE_VERIFY_URL, { method: "post", payload: { secret: secret, response: token }, muteHttpExceptions: true });
+    if (res.getResponseCode() >= 500) { console.warn("Turnstile unreachable (" + res.getResponseCode() + "): let through"); return true; }
+    var out = JSON.parse(res.getContentText() || "{}");
+    return out.success === true;
+  } catch (err) {
+    console.warn("Turnstile unreachable: let through. " + err);
+    return true;
+  }
+}
+
+// Run once from the editor after setting TURNSTILE_SECRET: asks Google for the "connect to an external service"
+// permission the bot check needs, and says whether Cloudflare answers.
+function testBotCheck() {
+  var res = UrlFetchApp.fetch(TURNSTILE_VERIFY_URL, { method: "post", payload: { secret: PropertiesService.getScriptProperties().getProperty("TURNSTILE_SECRET") || "", response: "test" }, muteHttpExceptions: true });
+  console.log("Cloudflare answered " + res.getResponseCode() + ": " + res.getContentText());
 }
 
 function handleRegister(data) {

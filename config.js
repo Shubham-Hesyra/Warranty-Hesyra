@@ -8,6 +8,9 @@ window.HESYRA_CONFIG = Object.freeze({
   // Record approximate city/region from the patient's IP at registration
   // (ipapi.co, falling back to ipwho.is). Set to false to disable.
   geoLookup: true,
+  // Cloudflare Turnstile site key (bot check on registering and checking in). Empty = no check.
+  // The secret key goes in the Apps Script as the TURNSTILE_SECRET script property.
+  turnstileSiteKey: '',
   // Keep a verified card open across reloads in the same browser tab.
   sessionMinutes: 30
 });

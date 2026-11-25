@@ -228,10 +228,46 @@
     }
   }
 
+  // Bot check (Cloudflare Turnstile, v2.9.0): only when config.js has a site key. Each submit asks for a fresh token;
+  // most people never see anything, a few get one tap. Without a key, or if Turnstile cannot load, the token is empty
+  // and the backend decides (it only insists once its secret is set).
+  const botCheck = (() => {
+    const key = String(CFG.turnstileSiteKey || '').trim();
+    if (!key) return { token: async () => '' };
+    const ready = new Promise((resolve) => {
+      window.onHesyraTurnstile = () => resolve(true);
+      const s = document.createElement('script');
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onHesyraTurnstile&render=explicit';
+      s.async = true;
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+      setTimeout(() => resolve(false), 15000);
+    });
+    const widgets = {};
+    return {
+      token: (where) => ready.then((ok) => new Promise((resolve) => {
+        if (!ok || !window.turnstile) return resolve('');
+        const box = document.getElementById(`bot-check-${where}`);
+        if (!box) return resolve('');
+        let done = false;
+        const finish = (t) => { if (!done) { done = true; resolve(t || ''); } };
+        try {
+          if (widgets[where] !== undefined) window.turnstile.remove(widgets[where]);
+          widgets[where] = window.turnstile.render(box, {
+            sitekey: key, action: where, execution: 'execute', appearance: 'interaction-only',
+            callback: finish, 'error-callback': () => finish(''), 'expired-callback': () => finish(''), 'timeout-callback': () => finish('')
+          });
+          window.turnstile.execute(box);
+        } catch (e) { finish(''); }
+        setTimeout(() => finish(''), 90000);
+      }))
+    };
+  })();
+
   const api = {
     lookup: (id) => callApi('GET', { action: 'lookup', id }),
-    register: (payload) => callApi('POST', Object.assign({ action: 'register' }, payload)),
-    verifyLogin: (id, phone) => callApi('POST', { action: 'verify_login', id, phone })
+    register: async (payload) => callApi('POST', Object.assign({ action: 'register', botToken: await botCheck.token('register') }, payload)),
+    verifyLogin: async (id, phone) => callApi('POST', { action: 'verify_login', id, phone, botToken: await botCheck.token('login') })
   };
 
   async function fetchJson(url, ms) {

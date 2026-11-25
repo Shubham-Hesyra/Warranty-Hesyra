@@ -120,6 +120,9 @@ function createGas() {
   const props = new Map();
   const lock = { available: true, held: false };
   const logs = [];
+  // UrlFetchApp: answer(url, options) -> { code, body } or throws; tests set it
+  const fetches = [];
+  const net = { answer: () => ({ code: 200, body: '{"success":false}' }) };
 
   const ctx = {
     Date, // share the host realm so `instanceof Date` works on mock cell values
@@ -138,6 +141,13 @@ function createGas() {
       })
     },
     PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (props.has(k) ? props.get(k) : null) }) },
+    UrlFetchApp: {
+      fetch: (url, options) => {
+        fetches.push({ url, options });
+        const a = net.answer(url, options);
+        return { getResponseCode: () => a.code, getContentText: () => a.body };
+      }
+    },
     LockService: {
       getScriptLock: () => ({
         tryLock: () => { if (!lock.available || lock.held) return false; lock.held = true; return true; },
@@ -150,7 +160,7 @@ function createGas() {
   vm.runInContext(fs.readFileSync(SCRIPT_PATH, 'utf8'), ctx, { filename: 'google_sheets_setup.gs' });
 
   const api = {
-    ctx, ss, cache, props, lock, logs,
+    ctx, ss, cache, props, lock, logs, fetches, net,
     sheet: () => ss.getSheetByName('WarrantyMaster'),
     get(params) { return JSON.parse(ctx.doGet({ parameter: params }).getContent()); },
     post(body) {

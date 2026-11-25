@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://ipapi.co https://ipwho.is; form-action 'none'; base-uri 'self'; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://challenges.cloudflare.com https://script.google.com https://script.googleusercontent.com https://ipapi.co https://ipwho.is; form-action 'none'; base-uri 'self'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
   <meta name="description" content="Official Hesyra Labs Digital Prosthesis Warranty Certificate & Verification Registry">
   <meta name="theme-color" content="#021024">
@@ -19,6 +19,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
   <style>
+    /* Bot check (Turnstile): takes no room unless Cloudflare asks for a tap */
+    .bot-check { display: flex; justify-content: center; }
+    .bot-check:empty { display: none; }
     body {
       margin: 0;
       padding: 0;
@@ -331,6 +334,8 @@
             <span id="location-hint">Encrypted registration & tamper-evident verification</span>
           </div>
 
+          <div id="bot-check-register" class="bot-check"></div>
+
           <div id="register-error-box" class="hidden" role="alert" style="padding: 12px 14px; border-radius: 12px; background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.35); color: #991b1b; font-size: 13px; line-height: 1.5"></div>
 
           <!-- Primary Submit Action & Seamless Big-Tech Legal Consent -->
@@ -371,6 +376,8 @@
           <input id="login-phone-input" maxlength="20" aria-describedby="login-phone-err" type="tel" inputmode="tel" placeholder="+91 98220 12345" autocomplete="tel" style="font-family: 'Inter', sans-serif; font-size: 15px; color: #021024; background: #ffffff; border-radius: 12px; padding: 13px 16px; outline: none; border: 1px solid #D3E2F0">
           <span id="login-phone-err" class="hidden" role="alert" style="font-size: 12px; color: #c0392b">Enter your registered mobile number.</span>
         </label>
+
+        <div id="bot-check-login" class="bot-check"></div>
 
         <button type="submit" id="login-submit-btn" style="display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 15px; color: #F2FAFF; background: linear-gradient(180deg, #0a3474, #052659); border: none; border-radius: 12px; padding: 15px 18px; cursor: pointer; box-shadow: 0 16px 32px -14px rgba(5,38,89,0.65), inset 0 1px 0 rgba(193,232,255,0.2)">
           <span id="login-spinner" class="hidden" style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(242,250,255,0.3); border-top-color: #F2FAFF; animation: hw-spin 0.8s linear infinite"></span>

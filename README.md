@@ -59,9 +59,22 @@ A crown can only be registered once column 3 (dispatch date) is filled. Setting 
 3. If ops software will call `ops_update`: **Project Settings → Script properties → Add** `OPS_TOKEN` = a long random string.
 4. **Deploy → Manage deployments → Edit (pencil) → Version: New version → Deploy.** Keep *Execute as: Me*, *Who has access: Anyone*. The `/exec` URL does not change.
 5. The `onEdit` expiry calculation runs automatically as a simple trigger.
+6. Bot check (optional, v2.9.0): add the script property `TURNSTILE_SECRET` = the Turnstile **secret** key, run
+   `testBotCheck` once from the editor (Google asks for the "connect to an external service" permission), then deploy a
+   new version as in step 4. Without the property there is no bot check.
 
 ### 2. Frontend
-Put the Web App URL in `config.js` (`apiUrl`), then publish the repo root as a static site (Render / Netlify / Vercel / GitHub Pages; no build command, publish directory `./`). `tests/`, `node_modules/` and `package.json` aren't needed at runtime.
+Put the Web App URL in `config.js` (`apiUrl`) and, for the bot check, the Turnstile **site** key in `turnstileSiteKey`.
+
+Hosting (v2.9.0): **Cloudflare Pages**, free, always on, served from Cloudflare's network. Cloudflare dashboard →
+Workers & Pages → Create → Pages → Connect to Git → `hesyralabs/hesyra-warranty`, then:
+- Production branch: `main`
+- Build command: `node scripts/build-pages.js`
+- Build output directory: `dist`
+
+Every push to `main` publishes. Only `index.html`, `app.js`, `config.js`, `assets/` and `_headers` are published
+(`scripts/build-pages.js`); the backend source and tests are not. Keep the old Render address answering (or redirecting)
+for as long as printed cards point to it.
 
 ### Ops software integration
 ```http

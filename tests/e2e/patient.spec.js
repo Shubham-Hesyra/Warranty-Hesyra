@@ -505,3 +505,34 @@ test('a W26-004817 card ID is typed and formatted like the box label (v2.8.0)', 
   await page.goto('/?id=w26-004817');
   await expect(page.locator('#crown-id-input')).toHaveValue('W26-004817');
 });
+
+// --------------------------------------------------------------- bot check (Turnstile, v2.9.0)
+test('with a Turnstile site key, registering and checking in send a fresh bot-check token', async ({ page, request }) => {
+  const FAKE = `window.turnstile = { n: 0, opts: {},
+    render(box, o) { const id = 'w' + (++this.n); this.opts[id] = o; box.dataset.widget = id; return id; },
+    execute(box) { const o = this.opts[box.dataset.widget]; setTimeout(() => o.callback('token-' + o.action), 20); },
+    remove() {} };
+    window.onHesyraTurnstile();`;
+  await page.route('**/config.js', (r) => r.fulfill({ contentType: 'application/javascript',
+    body: "window.HESYRA_CONFIG = Object.freeze({ apiUrl: '/exec', requestTimeoutMs: 4000, geoLookup: true, sessionMinutes: 30, turnstileSiteKey: '1x00000000000000000000AA' });" }));
+  await page.route('https://challenges.cloudflare.com/**', (r) => r.fulfill({ contentType: 'application/javascript', body: FAKE }));
+  await page.goto('/?id=ZIR-4510');
+  await expect(page.locator('#step2-section')).toBeVisible();
+  await registerAs(page);
+  await expect(page.locator('#card-view-section')).toBeVisible();
+  const posts = (await apiLog(request)).filter((r) => r.method === 'POST').map((r) => JSON.parse(r.body));
+  const reg = posts.find((b) => b.action === 'register');
+  expect(reg.botToken).toBe('token-register');
+});
+
+test('without a site key, nothing is loaded from Cloudflare and no token is sent', async ({ page, request }) => {
+  let asked = false;
+  await page.route('https://challenges.cloudflare.com/**', (r) => { asked = true; r.abort(); });
+  await page.goto('/?id=ZIR-4510');
+  await expect(page.locator('#step2-section')).toBeVisible();
+  await registerAs(page);
+  await expect(page.locator('#card-view-section')).toBeVisible();
+  const reg = (await apiLog(request)).filter((r) => r.method === 'POST').map((r) => JSON.parse(r.body)).find((b) => b.action === 'register');
+  expect(asked).toBe(false);
+  expect(reg.botToken).toBe('');
+});

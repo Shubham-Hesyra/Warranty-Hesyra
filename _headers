@@ -1,0 +1,19 @@
+# Cloudflare Pages response headers (v2.9.0)
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# The page and its scripts change with each release: always ask for the newest
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/app.js
+  Cache-Control: no-cache
+/config.js
+  Cache-Control: no-cache
+
+/assets/*
+  Cache-Control: public, max-age=86400
