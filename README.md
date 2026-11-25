@@ -72,6 +72,10 @@ Workers & Pages → Create → Pages → Connect to Git → `hesyralabs/hesyra-w
 - Build command: `node scripts/build-pages.js`
 - Build output directory: `dist`
 
+If Cloudflare creates it as a **Worker** (the newer "Workers & Pages" flow), the deploy command is `npx wrangler deploy`;
+`wrangler.jsonc` tells it to publish `dist/`. Either way the production branch must be `main` (GitHub's default branch
+here is still the old `1.0.0`, which has no build script).
+
 Every push to `main` publishes. Only `index.html`, `app.js`, `config.js`, `assets/` and `_headers` are published
 (`scripts/build-pages.js`); the backend source and tests are not. Keep the old Render address answering (or redirecting)
 for as long as printed cards point to it.

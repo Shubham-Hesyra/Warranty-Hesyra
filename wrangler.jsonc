@@ -1,0 +1,11 @@
+// Cloudflare hosting (v2.9.1): the warranty site as a Worker that serves static files only (free, always on).
+// Cloudflare builds it from the "main" branch: build command "node scripts/build-pages.js" (copies the site files into
+// dist/), deploy command "npx wrangler deploy" (publishes dist/ with the headers in _headers).
+{
+  "name": "hesyra-warranty",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
