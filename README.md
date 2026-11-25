@@ -77,8 +77,8 @@ If Cloudflare creates it as a **Worker** (the newer "Workers & Pages" flow), the
 here is still the old `1.0.0`, which has no build script).
 
 Every push to `main` publishes. Only `index.html`, `app.js`, `config.js`, `assets/` and `_headers` are published
-(`scripts/build-pages.js`); the backend source and tests are not. Keep the old Render address answering (or redirecting)
-for as long as printed cards point to it.
+(`scripts/build-pages.js`); the backend source and tests are not. The site is https://hesyra-warranty.hesyra-labs.workers.dev
+(the old Render site was retired on 2026-11-26, before any card or label was printed with its address).
 
 ### Ops software integration
 ```http

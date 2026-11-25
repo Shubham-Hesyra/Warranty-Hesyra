@@ -10,7 +10,7 @@ window.HESYRA_CONFIG = Object.freeze({
   geoLookup: true,
   // Cloudflare Turnstile site key (bot check on registering and checking in). Empty = no check.
   // The secret key goes in the Apps Script as the TURNSTILE_SECRET script property.
-  turnstileSiteKey: '',
+  turnstileSiteKey: '0x4AAAAAAGS6rNndm2ge7siN',
   // Keep a verified card open across reloads in the same browser tab.
   sessionMinutes: 30
 });
